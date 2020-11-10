@@ -5,6 +5,7 @@ class PDFWriter
 {
     private $writer;
     private $ftCtrl;
+    private $autoHeader;
     
     private $pages=[]; //{width:num, height:num, contents:[int(index of $this->contents),...]}
     private $contents=[]; //stream contents
@@ -28,6 +29,7 @@ class PDFWriter
         $this->contentModules=Config::Modules;
         $this->moduleClassToKey=array_flip($this->contentModules);
         $this->moduleClassToKey[PageMetrics::class]='metrics';
+        $this->autoHeader=$fp===false?true:false;
     }
 
     public function __get($name)
@@ -78,6 +80,9 @@ class PDFWriter
 
     public function output()
     {
+        if($this->autoHeader) {
+            header('Content-Type: application/pdf');
+        }
         if(is_null(array_key_last($this->pages))) {
             $this->addPage('A4');
         }
