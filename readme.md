@@ -27,7 +27,7 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 
 ### 安裝
 
-    composer install ren1244\PDFWriter
+    composer require ren1244/pdfwriter:v1.0.0-alpha
 
 ### 使用
 
