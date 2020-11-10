@@ -1,0 +1,7 @@
+{
+    "autoload": {
+        "psr-4": {
+            "ren1244\\PDFWriter\\": "src/"
+        }
+    }
+}
