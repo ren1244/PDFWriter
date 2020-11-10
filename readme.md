@@ -18,7 +18,7 @@
 2. Cntent Module：透過 PDFWriter 提供的物件，負責產生頁面的內容。
 3. 一般使用者：使用 PDFWriter + Cntent Module(s) 產生 PDF
 
-關於如何建立 Cntent Module 可以參考：[如何加入新的模組](doc/content_module)。
+關於如何建立 Cntent Module 可以參考：[如何加入新的模組](doc/content_module.md)。
 
 這邊只介紹自帶的基本功能：字型、文字、線條（內嵌點陣圖之後會加上去）
 如果只是產生報表應該還堪用
