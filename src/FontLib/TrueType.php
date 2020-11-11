@@ -10,11 +10,12 @@ class TrueType implements Font
     private $usedUnicode=[];
     private $unit;
     private $utg;
-    private $utw;
+    private $gtw;
     private $mtx;
     private $tbPos;
     //subset過程使用
-    private $utb;
+    private $gidMap;
+    private $gtb;
     private $loca; // gid => offset
     private $subsetFont;
     private $subsetSize;
@@ -32,7 +33,7 @@ class TrueType implements Font
             throw new \Exception("TrueType font $psName not exsits");
         }
         $info=json_decode(file_get_contents($jsonFile), true);
-        foreach(['unit', 'utw', 'utb', 'utg', 'mtx', 'tbPos', 'loca'] as $k) {
+        foreach(['unit', 'gtw', 'gtb', 'utg', 'mtx', 'tbPos', 'loca'] as $k) {
             $this->$k=$info[$k];
         }
         $scale=1000/$this->unit;
@@ -53,12 +54,12 @@ class TrueType implements Font
      */
     public function getWidth($unicode)
     {
-        $w=$this->utw[$unicode]??false;
-        if($w===false || $w===0) {
+        $u=$this->utg[$unicode]??false;
+        if($u===false || $u===0) {
             return false;
         }
         $this->usedUnicode[$unicode]=true;
-        return $w*1000/$this->unit;
+        return $this->gtw[$u]*1000/$this->unit;
     }
 
     /**
@@ -95,18 +96,22 @@ class TrueType implements Font
         $data=Config::FONT_DIR.'/'.$this->psName.'.bin';
         $data=file_get_contents($data);
         $glyfOffset=$this->tbPos['glyf']['pos'];
+        $usedUnicode=array_keys($this->usedUnicode);
+        sort($usedUnicode, SORT_NUMERIC);
         //[Head, Hhea, Maxp, post, name, glyf]
         $gidMap=[0=>0]; //old gid => new gid
         $nGid=1; //目前使用到的 Gid 數量
         $loca=[0,0]; //新的 loca
         $locaLen=0; //loca offset 累加
         $glyf=[]; //新的 glyf
-        $utg=[]; //新的 utg
+        $utg=[]; //新的 utg(只存用到部分)
 
         //$oldGlyf=$this->glyf;
         $oldLoca=$this->loca;
         $oldUTG=$this->utg;
-        foreach($this->usedUnicode as $u=>$t) {
+        $compositeQueue=[];
+        $compositeCount=0;
+        foreach($usedUnicode as $u) {
             $gid=$oldUTG[$u];
             if(isset($gidMap[$gid])) {
                 //已經有的話就不用再輸出（當Composite Glyph出現時可能發生）
@@ -116,8 +121,14 @@ class TrueType implements Font
             $length=$oldLoca[$gid+1]-$oldLoca[$gid];
             $numberOfContours=unpack('n', $data, $glyfOffset+$offset)[1];
             if($numberOfContours>>15&1){ //Composite Glyph
-                $numberOfContours=-(~$numberOfContours&0xffff)-1;
-                throw new \Exception('Composite Glyph Not Ready');
+                //$compositeIdx 存 $glyf 的 index
+                $compositeQueue[$compositeCount++]=$nGid-1;
+                //$glyf 存 old gid
+                $glyf[]=substr($data, $glyfOffset+$offset, $length);
+                $locaLen+=$length;
+                $loca[]=$locaLen;
+                $utg[$u]=$nGid;
+                $gidMap[$gid]=$nGid++;
             } else { //Simple Glyph 
                 $glyf[]=substr($data, $glyfOffset+$offset, $length);
                 $locaLen+=$length;
@@ -126,11 +137,48 @@ class TrueType implements Font
                 $gidMap[$gid]=$nGid++;
             }
         }
+        $nGid2=$nGid;
+        if($compositeCount>0) {
+            $oldGTU=array_flip($this->utg);
+        }
+        for($i=0;$i<$compositeCount;++$i) {
+            $glyfIdx=$compositeQueue[$i];
+            $curGlyf=$glyf[$glyfIdx];
+            $curPos=10;
+            $curGlyfNew=[substr($curGlyf, 0, 10)];
+            do {
+                $curGid=unpack('n2', $curGlyf, $curPos);
+                $flag=$curGid[1];
+                $curGid=$curGid[2];
+                $curLen=($flag&1?8:6)+($flag&0x08?2:($flag&0x40?4:($flag&0x80?8:0)));
+                if(!isset($gidMap[$curGid])) {
+                    $offset=$oldLoca[$curGid];
+                    $length=$oldLoca[$curGid+1]-$oldLoca[$curGid];
+                    $numberOfContours=unpack('n', $data, $glyfOffset+$offset)[1];
+                    $curGlyfNew[]=pack('n2', $flag, $nGid2).substr($curGlyf, $curPos+4, $curLen-4);
+                    if($numberOfContours>>15&1){ //Composite Glyph
+                        $compositeQueue[$compositeCount++]=$nGid2-1;
+                    }
+                    $glyf[]=substr($data, $glyfOffset+$offset, $length);
+                    $locaLen+=$length;
+                    $loca[]=$locaLen;
+                    $gidMap[$curGid]=$nGid2++;
+                } else {
+                    $curGlyfNew[]=pack('n2', $flag, $gidMap[$curGid]).substr($curGlyf, $curPos+4, $curLen-4);
+                }
+                //移到下一個位置
+                $curPos+=$curLen;
+            } while($flag&0x20); // MORE_COMPONENTS
+            $curGlyfNew[]=substr($curGlyf, $curPos);
+            $curGlyfNew=implode('', $curGlyfNew);
+            $glyf[$glyfIdx]=$curGlyfNew;
+        }
+        $this->gidMap=array_flip($gidMap);
         $out=[];
         $out['glyf']=implode('', $glyf);
         $out['loca']=pack('N*', ...$loca);
         $out['cmap']=$this->getCmap($utg);
-        $out['hmtx']=$this->getHmtx($utg, $nGid);
+        $out['hmtx']=$this->getHmtx($nGid2);
         //head 54::50[n;1]2
         $pos=$this->tbPos['head']['pos'];
         $len=$this->tbPos['head']['len'];
@@ -138,19 +186,29 @@ class TrueType implements Font
         //Hhea 36::34[n;nGid]
         $pos=$this->tbPos['hhea']['pos'];
         $len=$this->tbPos['hhea']['len'];
-        $out['hhea']=substr($data, $pos, 34).pack('n', $nGid);
+        $out['hhea']=substr($data, $pos, 34).pack('n', $nGid2);
         //Maxp 6+::4[n;nGid]
         $pos=$this->tbPos['maxp']['pos'];
         $len=$this->tbPos['maxp']['len'];
-        $out['maxp']=substr($data, $pos, 4).pack('n', $nGid).substr($data, $pos+6, $len-6);
+        $out['maxp']=substr($data, $pos, 4).pack('n', $nGid2).substr($data, $pos+6, $len-6);
         //post & name
-        foreach(['post', 'name'] as $k) {
+        $tbs=['cmap', 'glyf', 'head', 'hhea', 'hmtx', 'loca', 'maxp', 'name', 'post'];
+        $copyTables=['post', 'name'];
+        foreach(['cvt ', 'fpgm', 'prep'] as $optName) {
+            if(isset($this->tbPos[$optName])) {
+                $tbs[]=$optName;
+                $copyTables[]=$optName;
+            }
+        }
+        foreach($copyTables as $k) {
             $out[$k]=substr($data, $this->tbPos[$k]['pos'], $this->tbPos[$k]['len']);
         }
         //產生表頭
-        $tbs=['cmap', 'glyf', 'head', 'hhea', 'hmtx', 'loca', 'maxp', 'name', 'post'];
-        $s=[pack('Nn4', 0x00010000, 9, 48, 3, 9*16-48)];
-        $offset=12+9*16;
+        $tbCount=count($tbs);
+        $logTbCount=floor(log($tbCount, 2));
+        $powOf2=round(pow(2, $logTbCount));
+        $s=[pack('Nn4', 0x00010000, $tbCount, $powOf2*16, $logTbCount, ($tbCount-$powOf2)*16)];
+        $offset=12+$tbCount*16;
         foreach($tbs as $tbName) {
             $len=strlen($out[$tbName]);
             if($len&3) {
@@ -191,11 +249,17 @@ class TrueType implements Font
     public function getW()
     {
         $ctw=[];
-        $w=$this->utw;
-        $utc=$this->utg;
+        $gtw=$this->gtw;
+        $utg=$this->utg;
+        $gidMap=$this->gidMap;
         $unit=$this->unit;
+        //unicode -> newgid
+        //unicode -> newgid -> oldgid -> width
         foreach($this->usedUnicode as $u=>$x) {
-            $ctw[$utc[$u]]=$w[$u]*1000/$unit;
+            $newGid=$utg[$u];
+            $oldGid=$gidMap[$newGid];
+            $w=$gtw[$oldGid];
+            $ctw[$newGid]=$w*1000/$unit;
         }
         return $ctw;
     }
@@ -274,19 +338,20 @@ class TrueType implements Font
     /**
      * 建立 hmtx 表
      * 
-     * @param array $utg unicode => gid 表
      * @param int $nGid 共有幾個 gid
      * @return string hmtx 表
      */
-    private function getHmtx($utg, $nGid)
+    private function getHmtx($nGid)
     {
-        $gtu=array_flip($utg); //new gid=>unicode
-        $utw=$this->utw;
-        $utb=$this->utb;
+        $gidMap=$this->gidMap;
+        $gtw=$this->gtw;
+        $gtb=$this->gtb;
         $out=[pack('n2', 1000, 0)];
         for($gid=1;$gid<$nGid;++$gid) {
-            $u=$gtu[$gid]??0;
-            $out[]=pack('n2', $utw[$u], $utb[$u]);
+            $oldGid=$gidMap[$gid];
+            $w=$gtw[$oldGid]??1000;
+            $b=$gtb[$oldGid]??0;
+            $out[]=pack('n2', $w, $b);
         }
         return implode('', $out);
     }

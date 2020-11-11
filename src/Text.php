@@ -66,7 +66,7 @@ class Text
                 $curPsName=$psn;
             }
             $ftChangeFlag=$curPsName!==$psn?true:false;
-            $outOfRangeFlag=$x+$dx>$xMax?true:false;
+            $outOfRangeFlag=$x+$dx>$xMax||$c===10?true:false;
             if($ftChangeFlag || $outOfRangeFlag) {
                 if($sy+$hInfo['descent']<$yMin) {
                     $outOfRangeFlag=true;
@@ -81,12 +81,12 @@ class Text
                 ];
                 $this->posX=$x;
                 $this->posY=$y;
-                $pos+=$len;
-                $len=$c>0xffff?4:2;
+                $pos+=$len+($c===10?2:0);
+                $len=$c>0xffff?4:($c!==10?2:0);
                 $curPsName=$psn;
                 if($outOfRangeFlag) {
                     $sx=$xMin;
-                    $x=$xMin+$dx;
+                    $x=$xMin+($c!==10?$dx:0);
                     $y-=$lineHeight;
                     $sy=$y;
                     if($sy+$hInfo['descent']<$yMin) {

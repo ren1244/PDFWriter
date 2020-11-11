@@ -30,20 +30,18 @@ class TrueTypeLoader
         $this->readName();
         $max=count($this->widths)-1;
         $dw=$this->widths[$max];
-        $wArr=[];$bArr=[];
         $scale=1000/$this->mtx['unitsPerEm'];
         $scale=1;
-        foreach($this->utg as $c=>$g) {
-            $w=$g>$max?$dw:$this->widths[$g];
-            $b=$g>$max?0:$this->bearings[$g];
-            $wArr[$c]=$w*$scale;
-            $bArr[$c]=$b*$scale;
-        }
         if(!isset($this->names[6])) {
             throw new \Exception('no post script name');
         }
         $psname=$this->names[6];
         $tbNames=['head', 'hhea', 'maxp', 'post', 'name', 'glyf'];
+        foreach(['cvt ', 'fpgm', 'prep'] as $optName) {
+            if(isset($this->tbPos[$optName])) {
+                $tbNames[]=$optName;
+            }
+        }
         $newTbPos=[];
         $newTbPosSum=0;
         $newData=[];
@@ -59,8 +57,8 @@ class TrueTypeLoader
         }
         $output=[
             'unit'=>$this->mtx['unitsPerEm'],
-            'utw'=>$wArr,
-            'utb'=>$bArr,
+            'gtw'=>$this->widths,
+            'gtb'=>$this->bearings,
             'utg'=>$this->utg,
             'mtx'=>[
                 'bbox'=>[
@@ -133,8 +131,9 @@ class TrueTypeLoader
     private function readHhea()
     {
         $data=$this->data;
+        $pos=$this->tbPos['maxp']['offset'];
+        $maxGid=unpack('n', $data, $pos+4)[1];
         $pos=$this->tbPos['hhea']['offset'];
-        //var_dump($pos);
         $arr=unpack('nascender/ndescender/nlineGap', $data, $pos+4);
         foreach($arr as $key=>$val) {
             if($val>>15&1) {
@@ -153,11 +152,10 @@ class TrueTypeLoader
             $widths[]=$advanceWidth;
             $bearings[]=$lsb;
         }
-        $maxGid=$this->maxGid;
         for(;$i<=$maxGid;++$i){
             $lsb=(ord($data[$pos])<<8|ord($data[1+$pos]));
             $pos+=2;
-            $widths[]=$advenceWidth;
+            $widths[]=$advanceWidth;
             $bearings[]=$lsb;
         }
         $this->widths=$widths;
