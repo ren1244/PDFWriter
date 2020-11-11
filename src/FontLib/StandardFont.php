@@ -77,6 +77,17 @@ class StandardFont
         return $ctw;
     }
 
+    /**
+     * 取得使用到文字的 ctu 映射表
+     * 這會用來產生 pdf Font 的 /ToUnicode entry
+     * 
+     * @return array 回傳 cid => unicode 映射表
+     */
+    public function getCTU()
+    {
+        //standard font 用不到
+    }
+
     //將 str 轉換為 code，這必須在 subset 之後呼叫
     public function getText($str)
     {

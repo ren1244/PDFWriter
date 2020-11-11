@@ -229,12 +229,15 @@ class FontController
             '/W '.$this->converToW($ftname),
             '/CIDToGIDMap /Identity',
         ]));
+        $toUincodeStr=$this->getToUnicode($ftname);
+        $toUincodeId=$writer->writeStream($toUincodeStr, StreamWriter::COMPRESS);
         $fontId=$writer->writeDict(implode("\n", [
             '/Type /Font',
             '/Subtype /Type0',
             '/BaseFont /'.$subsetFtName,
             '/Encoding /Identity-H',
             '/DescendantFonts ['.$CIDFontId.' 0 R]',
+            '/ToUnicode '.$toUincodeId.' 0 R'
         ]));
         return $fontId;
     }
@@ -266,5 +269,55 @@ class FontController
             $cU=$u;
         }
         return '['.implode(' ', $tmp).']';
+    }
+
+    private function getToUnicode($ftName)
+    {
+        $ctu=$this->fonts[$ftName]->getCTU();
+        $lastIdx=count($ctu);
+        if($lastIdx===0) {
+            return false;
+        }
+        //
+        $s=[];
+        foreach($ctu as $c=>$u) {
+            if($u>0xffff) {
+                $u-=0x10000;
+                $s[]=str_pad(dechex(($u>>10)+0xD800), 4, '0', STR_PAD_LEFT).
+                    str_pad(dechex(($u&0x3ff)+0xDC00), 4, '0', STR_PAD_LEFT);
+            } else {
+                $s[]=str_pad(dechex($u), 4, '0', STR_PAD_LEFT);
+            }
+        }
+        $s='<0001> <'.str_pad(dechex($lastIdx), 4, '0', STR_PAD_LEFT).
+            '> [<'.implode('> <', $s).'>]';
+        $s=[
+            '/CIDInit /ProcSet findresource begin',
+            '12 dict begin',
+            'begincmap',
+            '/CIDSystemInfo',
+            '<< /Registry (Adobe)',
+            '/Ordering (UCS)',
+            '/Supplement 0',
+            '>> def',
+            '/CMapName /Adobe−Identity−UCS def',
+            '/CMapType 2 def',
+            '1 begincodespacerange',
+            '<0000> <FFFF>',
+            'endcodespacerange',
+            '1 beginbfrange',
+            $s,
+            'endbfrange',
+            '0 beginbfchar',
+            'endbfchar',
+            'endcmap',
+            'CMapName currentdict /CMap defineresource pop',
+            'end',
+            'end',
+        ];
+        return implode("\n", $s);
+        /*$fp=fopen(__DIR__.'/../log.txt', 'w');
+        fwrite($fp, implode("\n", $s));
+        fclose($fp);*/
     }
 }

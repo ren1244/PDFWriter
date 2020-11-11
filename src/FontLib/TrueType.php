@@ -105,6 +105,7 @@ class TrueType implements Font
         $locaLen=0; //loca offset 累加
         $glyf=[]; //新的 glyf
         $utg=[]; //新的 utg(只存用到部分)
+        //$utg2=[]; //新的 gtw(只存複合字型相依，但是不在 subset 中)
 
         //$oldGlyf=$this->glyf;
         $oldLoca=$this->loca;
@@ -262,6 +263,17 @@ class TrueType implements Font
             $ctw[$newGid]=$w*1000/$unit;
         }
         return $ctw;
+    }
+
+    /**
+     * 取得使用到文字的 ctu 映射表
+     * 這會用來產生 pdf Font 的 /ToUnicode entry
+     * 
+     * @return array 回傳 cid => unicode 映射表
+     */
+    public function getCTU()
+    {
+        return array_flip($this->utg);
     }
 
     /**

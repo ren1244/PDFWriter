@@ -65,6 +65,14 @@ interface Font
     public function getW();
 
     /**
+     * 取得使用到文字的 ctu 映射表
+     * 這會用來產生 pdf Font 的 /ToUnicode entry
+     * 
+     * @return array 回傳 cid => unicode 映射表
+     */
+    public function getCTU();
+
+    /**
      * 回傳字型資訊，包含：
      * getMtx() 的所有內容外加 size
      * size: subset後字型檔的原始大小(未壓縮前)
