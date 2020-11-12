@@ -26,7 +26,6 @@ interface Font
      * ascent: 基線以上高度
      * descent: 基線以下高度
      * capHeight: capHeight（稍微小於或等於 ascent）
-     * size: 字型檔的原始大小(未壓縮前)
      * 
      * @return array 字型資訊
      */
@@ -46,6 +45,13 @@ interface Font
     public function subset();
 
     //========以下為 subset 後會被呼叫========
+
+    /**
+     * 回傳字型真正的名稱(不一定是檔名)
+     * 
+     * @return string 字型名稱
+     */
+    public function getPostscriptName();
 
     /**
      * 回傳字型資料(用 gzcompress 壓縮後的)

@@ -17,7 +17,7 @@ class TrueTypeLoader
     private $names;
     private $loca=[];
 
-    public function loadFile($filename)
+    public function loadFile($filename, $outputNmae=false)
     {
         $this->data=file_get_contents($filename);
         $this->getTables();
@@ -56,6 +56,7 @@ class TrueTypeLoader
             $newTbPosSum+=$len;
         }
         $output=[
+            'psname'=>$psname,
             'unit'=>$this->mtx['unitsPerEm'],
             'gtw'=>$this->widths,
             'gtb'=>$this->bearings,
@@ -75,8 +76,11 @@ class TrueTypeLoader
             'loca'=>$this->loca,
             'tbPos'=>$newTbPos,
         ];
-        file_put_contents(Config::FONT_DIR.'/'.$psname.'.json', json_encode($output,  JSON_UNESCAPED_UNICODE| JSON_UNESCAPED_SLASHES| JSON_PRETTY_PRINT));        
-        file_put_contents(Config::FONT_DIR.'/'.$psname.'.bin', implode('', $newData));
+        if($outputNmae===false) {
+            $outputNmae=$psname;
+        }
+        file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.json', json_encode($output,  JSON_UNESCAPED_UNICODE| JSON_UNESCAPED_SLASHES| JSON_PRETTY_PRINT));        
+        file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
     }
 
     private function getTables()

@@ -8,9 +8,9 @@ class FontController
 {
     private $fonts=[];
     private $fontCount=0;
-    private $curFont=false; //psName
+    private $curFont=false; //ftName
     private $curName=false; //pdf font name
-    private $ps2name=[];
+    private $ft2name=[]; //字型檔案的名稱 => PDF內字型名稱
     private $getWidthType=false;
     private $ftSize=12;
     private $subsetId=0;
@@ -22,24 +22,24 @@ class FontController
         'Symbol'
     ];
 
-    public function addFont($psName)
+    public function addFont($ftName)
     {
-        if(!isset($this->fonts[$psName])) {
-            if(in_array($psName, self::$standardFontName)) {
-                $ft=new \ren1244\PDFWriter\FontLib\StandardFont($psName);
+        if(!isset($this->fonts[$ftName])) {
+            if(in_array($ftName, self::$standardFontName)) {
+                $ft=new \ren1244\PDFWriter\FontLib\StandardFont($ftName);
             } else {
-                $ft=new \ren1244\PDFWriter\FontLib\TrueType($psName);
+                $ft=new \ren1244\PDFWriter\FontLib\TrueType($ftName);
             }
-            $this->fonts[$psName]=$ft;
+            $this->fonts[$ftName]=$ft;
             $nameId=++$this->fontCount;
-            $this->ps2name[$psName]="FT$nameId";
-            $this->setFont($psName);
+            $this->ft2name[$ftName]="FT$nameId";
+            $this->setFont($ftName);
         }
     }
 
-    public function getFontName($psName)
+    public function getFontName($ftName)
     {
-        return $this->ps2name[$psName]??false;
+        return $this->ft2name[$ftName]??false;
     }
 
     /**
@@ -96,8 +96,8 @@ class FontController
             $hMax=0;
             $dMax=0;
             $szMax=0;
-            foreach($this->curFont as $psName=>$ftSize) {
-                $info=$this->fonts[$psName]->getMtx();
+            foreach($this->curFont as $ftName=>$ftSize) {
+                $info=$this->fonts[$ftName]->getMtx();
                 $h=$info['ascent'];
                 $d=$info['descent'];
                 if($hMax<$h){
@@ -119,9 +119,9 @@ class FontController
         }
     }
 
-    public function getText($psName, $str)
+    public function getText($ftName, $str)
     {
-        return $this->fonts[$psName]->getText($str);
+        return $this->fonts[$ftName]->getText($str);
     }
 
     public function subset()
@@ -132,9 +132,9 @@ class FontController
         //not ready
     }
 
-    public function getTextContent($psName, $str)
+    public function getTextContent($ftName, $str)
     {
-        return $this->fonts[$psName]->getText($str);
+        return $this->fonts[$ftName]->getText($str);
     }
 
     /**
@@ -143,15 +143,15 @@ class FontController
     public function write($writer)
     {
         $ids=[];
-        foreach($this->fonts as $psName => $fontObj) {
+        foreach($this->fonts as $ftName => $fontObj) {
             $type=$fontObj->getType();
             if($type===0) {
-                $id=$this->writeStandardFont($psName, $writer);
+                $id=$this->writeStandardFont($ftName, $writer);
             }elseif($type==1) {
-                $id=$this->writeType0($psName, $writer);
+                $id=$this->writeType0($ftName, $writer);
             }
-            $ftName=$this->ps2name[$psName];
-            $ids[]="/$ftName $id 0 R";
+            $pdfFtName=$this->ft2name[$ftName];
+            $ids[]="/$pdfFtName $id 0 R";
         }
         if(count($ids)===0) {
             return '';
@@ -171,12 +171,12 @@ class FontController
         return false;
     }
 
-    private function getWidthArray($unicode, &$ftName)
+    private function getWidthArray($unicode, &$oFtName)
     {
-        foreach($this->curFont as $psName=>$ftSize) {
-            $ft=$this->fonts[$psName];
+        foreach($this->curFont as $ftName=>$ftSize) {
+            $ft=$this->fonts[$ftName];
             $w=$ft->getWidth($unicode);
-            $ftName=$psName;
+            $oFtName=$ftName;
             if($w!==false) {
                 $w*=$ftSize/1000;
                 break;
@@ -185,25 +185,26 @@ class FontController
         return $w;
     }
 
-    private function writeStandardFont($ftname, $writer)
+    private function writeStandardFont($psName, $writer)
     {
         $id=$writer->writeDict(implode("\n", [
             '/Type /Font',
             '/Subtype /Type1',
-            '/BaseFont /'.$ftname
+            '/BaseFont /'.$psName
         ]));
         return $id;
     }
 
-    private function writeType0($ftname, $writer)
+    private function writeType0($ftName, $writer)
     {
-        $ftObj=$this->fonts[$ftname];
+        $ftObj=$this->fonts[$ftName];
+        $psName=$ftObj->getPostScriptName();
         $info=$ftObj->getInfo();
         $ftContent=$ftObj->getProgram();
         $len=$info['size'];
         $ttfStreamId=$writer->writeStream($ftContent, StreamWriter::FLATEDECODE, ['Length1'=>$len]);
         $subsetId=$this->subsetId++;
-        $subsetFtName='AAAA'.chr(65+($subsetId-$subsetId%26)/26).chr(65+$subsetId%26).'+'.$ftname;
+        $subsetFtName='AAAA'.chr(65+($subsetId-$subsetId%26)/26).chr(65+$subsetId%26).'+'.$psName;
         $descriptorId=$writer->writeDict(implode("\n", [
             '/Type /FontDescriptor',
             '/FontName /'.$subsetFtName,
@@ -226,10 +227,10 @@ class FontController
             '/Supplement 0',
             '>>',
             '/FontDescriptor '.$descriptorId.' 0 R',
-            '/W '.$this->converToW($ftname),
+            '/W '.$this->converToW($ftName),
             '/CIDToGIDMap /Identity',
         ]));
-        $toUincodeStr=$this->getToUnicode($ftname);
+        $toUincodeStr=$this->getToUnicode($ftName);
         $toUincodeId=$writer->writeStream($toUincodeStr, StreamWriter::COMPRESS);
         $fontId=$writer->writeDict(implode("\n", [
             '/Type /Font',
@@ -242,7 +243,6 @@ class FontController
         return $fontId;
     }
 
-    //public function converToW($ftName)
     private function converToW($ftName)
     {
         $utw=$this->fonts[$ftName]->getW();
@@ -316,8 +316,5 @@ class FontController
             'end',
         ];
         return implode("\n", $s);
-        /*$fp=fopen(__DIR__.'/../log.txt', 'w');
-        fwrite($fp, implode("\n", $s));
-        fclose($fp);*/
     }
 }

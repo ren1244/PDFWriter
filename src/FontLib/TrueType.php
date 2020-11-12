@@ -6,7 +6,7 @@ use ren1244\PDFWriter\Config;
 class TrueType implements Font
 {
     //基本資訊
-    private $psName;
+    private $ftName;
     private $usedUnicode=[];
     private $unit;
     private $utg;
@@ -21,19 +21,19 @@ class TrueType implements Font
     private $subsetSize;
     
     /**
-     * 依據 $psName 初始化
+     * 依據 $ftName 初始化
      * 
-     * @param string $psName 字型辨識名稱
+     * @param string $ftName 字型辨識名稱
      */
-    public function __construct($psName)
+    public function __construct($ftName)
     {
-        $this->psName=$psName;
-        $jsonFile=Config::FONT_DIR.'/'.$psName.'.json';
+        $this->ftName=$ftName;
+        $jsonFile=Config::FONT_DIR.'/'.$ftName.'.json';
         if(!file_exists($jsonFile)) {
-            throw new \Exception("TrueType font $psName not exsits");
+            throw new \Exception("TrueType font $ftName not exsits");
         }
         $info=json_decode(file_get_contents($jsonFile), true);
-        foreach(['unit', 'gtw', 'gtb', 'utg', 'mtx', 'tbPos', 'loca'] as $k) {
+        foreach(['unit', 'gtw', 'gtb', 'utg', 'mtx', 'tbPos', 'loca', 'psname'] as $k) {
             $this->$k=$info[$k];
         }
         $scale=1000/$this->unit;
@@ -93,7 +93,7 @@ class TrueType implements Font
      */
     public function subset()
     {
-        $data=Config::FONT_DIR.'/'.$this->psName.'.bin';
+        $data=Config::FONT_DIR.'/'.$this->ftName.'.bin';
         $data=file_get_contents($data);
         $glyfOffset=$this->tbPos['glyf']['pos'];
         $usedUnicode=array_keys($this->usedUnicode);
@@ -228,6 +228,16 @@ class TrueType implements Font
     }
 
     //========以下為 subset 後會被呼叫========
+
+    /**
+     * 回傳字型真正的名稱(不一定是檔名)
+     * 
+     * @return string 字型名稱
+     */
+    public function getPostscriptName()
+    {
+        return $this->psname;
+    }
 
     /**
      * 回傳字型資料(用 gzcompress 壓縮後的)

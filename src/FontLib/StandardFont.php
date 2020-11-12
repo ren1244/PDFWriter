@@ -15,9 +15,9 @@ class StandardFont
     public function __construct($psName)
     {
         $this->psName=$psName;
-        $jsonFile=Config::FONT_DIR.'/'.$psName.'.json';
+        $jsonFile=Config::FONT_DIR.'/standard/'.$psName.'.json';
         if(!file_exists($jsonFile)) {
-            throw new Exception("Standatd font $psName not exsits");
+            throw new \Exception("Standatd font $psName not exsits");
         }
         $this->info=json_decode(file_get_contents($jsonFile), true);
     }

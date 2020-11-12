@@ -19,14 +19,14 @@ class PDFWriter
     private $contentModules;
     private $moduleClassToKey;
 
-    public function __construct($fp=false)
+    public function __construct($fp=false, $withModules=[])
     {
         $this->writer=new StreamWriter($fp);
         $this->ftCtrl=new FontController;
         $this->catalogId=$this->writer->preserveId();
         $this->pageTreeId=$this->writer->preserveId();
         $this->resourceId=$this->writer->preserveId();
-        $this->contentModules=Config::Modules;
+        $this->contentModules=Config::Modules+$withModules;
         $this->moduleClassToKey=array_flip($this->contentModules);
         $this->moduleClassToKey[PageMetrics::class]='metrics';
         $this->autoHeader=$fp===false?true:false;

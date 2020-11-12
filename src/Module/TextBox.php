@@ -1,5 +1,7 @@
 <?php
-namespace ren1244\PDFWriter;
+namespace ren1244\PDFWriter\Module;
+
+use ren1244\PDFWriter\PageMetrics;
 
 class TextBox
 {
