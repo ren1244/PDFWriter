@@ -25,16 +25,11 @@ class TrueType implements Font
      * 
      * @param string $ftName 字型辨識名稱
      */
-    public function __construct($ftName)
+    public function __construct($ftName, $ftJson)
     {
         $this->ftName=$ftName;
-        $jsonFile=Config::FONT_DIR.'/'.$ftName.'.json';
-        if(!file_exists($jsonFile)) {
-            throw new \Exception("TrueType font $ftName not exsits");
-        }
-        $info=json_decode(file_get_contents($jsonFile), true);
         foreach(['unit', 'gtw', 'gtb', 'utg', 'mtx', 'tbPos', 'loca', 'psname'] as $k) {
-            $this->$k=$info[$k];
+            $this->$k=$ftJson[$k];
         }
         $scale=1000/$this->unit;
         foreach(['italicAngle', 'ascent', 'descent', 'capHeight'] as $k) {

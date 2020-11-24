@@ -28,7 +28,18 @@ class FontController
             if(in_array($ftName, self::$standardFontName)) {
                 $ft=new \ren1244\PDFWriter\FontLib\StandardFont($ftName);
             } else {
-                $ft=new \ren1244\PDFWriter\FontLib\TrueType($ftName);
+                $jsonFile=Config::FONT_DIR.'/'.$ftName.'.json';
+                if(!file_exists($jsonFile)) {
+                    throw new \Exception("TrueType font $ftName not exsits");
+                }
+                $jsonData=json_decode(file_get_contents($jsonFile), true);
+                if($jsonData['type']==='OTF') {
+                    $ft=new \ren1244\PDFWriter\FontLib\OpenType($ftName, $jsonData);
+                } elseif($jsonData['type']==='TTF') {
+                    $ft=new \ren1244\PDFWriter\FontLib\TrueType($ftName, $jsonData);
+                } else {
+                    throw new \Exception('bad type of '.$ftName.'.json ');
+                }
             }
             $this->fonts[$ftName]=$ft;
             $nameId=++$this->fontCount;
@@ -149,6 +160,8 @@ class FontController
                 $id=$this->writeStandardFont($ftName, $writer);
             }elseif($type==1) {
                 $id=$this->writeType0($ftName, $writer);
+            }elseif($type==2) {
+                $id=$this->writeOpenType($ftName, $writer);
             }
             $pdfFtName=$this->ft2name[$ftName];
             $ids[]="/$pdfFtName $id 0 R";
@@ -243,6 +256,57 @@ class FontController
         return $fontId;
     }
 
+    private function writeOpenType($ftName, $writer)
+    {
+        $ftObj=$this->fonts[$ftName];
+        $psName=$ftObj->getPostScriptName();
+        $info=$ftObj->getInfo();
+        $ftContent=$ftObj->getProgram();
+        $len=$info['size'];
+        $otfStreamId=$writer->writeStream(
+            $ftContent, StreamWriter::FLATEDECODE, [
+                'Subtype'=>'/CIDFontType0C'
+            ]
+        );
+        $subsetId=$this->subsetId++;
+        $subsetFtName='AAAA'.chr(65+($subsetId-$subsetId%26)/26).chr(65+$subsetId%26).'+'.$psName;
+        $descriptorId=$writer->writeDict(implode("\n", [
+            '/Type /FontDescriptor',
+            '/FontName /'.$subsetFtName,
+            '/Flags 4',
+            '/FontBBox ['.implode(' ', $info['bbox']).']',
+            '/ItalicAngle '.$info['italicAngle'],
+            '/Ascent '.$info['ascent'],
+            '/Descent '.$info['descent'],
+            '/CapHeight '.$info['capHeight'],
+            '/StemV 0',
+            '/FontFile3 '.$otfStreamId.' 0 R'
+        ]));
+        $CIDFontId=$writer->writeDict(implode("\n", [
+            '/Type /Font',
+            '/Subtype /CIDFontType0',
+            '/BaseFont /'.$subsetFtName,
+            '/CIDSystemInfo <<',
+            '/Registry (Adobe)',
+            '/Ordering (Identity)',
+            '/Supplement 0',
+            '>>',
+            '/FontDescriptor '.$descriptorId.' 0 R',
+            '/W '.$this->converToW($ftName),
+        ]));
+        $toUincodeStr=$this->getToUnicode($ftName);
+        $toUincodeId=$writer->writeStream($toUincodeStr, StreamWriter::COMPRESS);
+        $fontId=$writer->writeDict(implode("\n", [
+            '/Type /Font',
+            '/Subtype /Type0',
+            '/BaseFont /'.$subsetFtName,
+            '/Encoding /Identity-H',
+            '/DescendantFonts ['.$CIDFontId.' 0 R]',
+            '/ToUnicode '.$toUincodeId.' 0 R'
+        ]));
+        return $fontId;
+    }
+
     private function converToW($ftName)
     {
         $utw=$this->fonts[$ftName]->getW();
@@ -279,7 +343,7 @@ class FontController
             return false;
         }
         //
-        $s=[];
+        $s=['0000'];
         foreach($ctu as $c=>$u) {
             if($u>0xffff) {
                 $u-=0x10000;
@@ -289,27 +353,31 @@ class FontController
                 $s[]=str_pad(dechex($u), 4, '0', STR_PAD_LEFT);
             }
         }
-        $s='<0001> <'.str_pad(dechex($lastIdx), 4, '0', STR_PAD_LEFT).
-            '> [<'.implode('> <', $s).'>]';
+        $tmp=[];
+        for($i=0;$i<$lastIdx+1;$i+=256) {
+            $ss=array_slice($s, $i, 256);
+            $end=count($ss);
+            $tmp[]='<'.str_pad(dechex($i), 4, '0', STR_PAD_LEFT).'> <'.
+                str_pad(dechex($i+$end-1), 4, '0', STR_PAD_LEFT).'> [<'.
+                implode('> <', $ss).'>]';
+        }
         $s=[
             '/CIDInit /ProcSet findresource begin',
             '12 dict begin',
             'begincmap',
-            '/CIDSystemInfo',
-            '<< /Registry (Adobe)',
-            '/Ordering (UCS)',
-            '/Supplement 0',
+            '/CIDSystemInfo <<',
+            '  /Registry (Adobe)',
+            '  /Ordering (UCS)',
+            ' /Supplement 0',
             '>> def',
-            '/CMapName /Adobe−Identity−UCS def',
+            '/CMapName /Adobe-Identity-UCS def',
             '/CMapType 2 def',
             '1 begincodespacerange',
-            '<0000> <FFFF>',
+            '<0000><ffff>',
             'endcodespacerange',
-            '1 beginbfrange',
-            $s,
+            count($tmp).' beginbfrange',
+            implode("\n", $tmp),
             'endbfrange',
-            '0 beginbfchar',
-            'endbfchar',
             'endcmap',
             'CMapName currentdict /CMap defineresource pop',
             'end',

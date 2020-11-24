@@ -8,7 +8,7 @@ interface Font
      * 
      * @param string $psName 字型辨識名稱
      */
-    public function __construct($psName);
+    public function __construct($psName, $ftJson);
 
     /**
      * 取得該 unicode 的寬度，如果超出字型範圍，回傳 false

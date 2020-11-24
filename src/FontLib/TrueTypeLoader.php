@@ -22,7 +22,12 @@ class TrueTypeLoader
         $this->data=file_get_contents($filename);
         $this->getTables();
         $this->readCmap();
-        $this->readLoca();
+        if($this->type==='TTF') {
+            $this->readLoca();
+        } else {
+            $this->loca=[]; //目前無
+            //$this->readCFF();
+        }
         $this->readHhea();
         $this->readHead();
         $this->readPost();
@@ -36,26 +41,34 @@ class TrueTypeLoader
             throw new \Exception('no post script name');
         }
         $psname=$this->names[6];
-        $tbNames=['head', 'hhea', 'maxp', 'post', 'name', 'glyf'];
-        foreach(['cvt ', 'fpgm', 'prep'] as $optName) {
-            if(isset($this->tbPos[$optName])) {
-                $tbNames[]=$optName;
+        
+        if($this->type==='TTF') {
+            $tbNames=['head', 'hhea', 'maxp', 'post', 'name', 'glyf']; //會被另外保存的
+            foreach(['cvt ', 'fpgm', 'prep'] as $optName) {
+                if(isset($this->tbPos[$optName])) {
+                    $tbNames[]=$optName;
+                }
             }
+            $newTbPos=[];
+            $newTbPosSum=0;
+            $newData=[];
+            foreach($tbNames as $tbName){
+                $len=$this->tbPos[$tbName]['length'];
+                $pos=$this->tbPos[$tbName]['offset'];
+                $newData[]=substr($this->data, $pos, $len);
+                $newTbPos[$tbName]=[
+                    'pos'=>$newTbPosSum,
+                    'len'=>$len
+                ];
+                $newTbPosSum+=$len;
+            }
+            $newJson=false;
+        } else {
+            list($newJson, $newTbPos, $newData)=$this->getCFFData();
         }
-        $newTbPos=[];
-        $newTbPosSum=0;
-        $newData=[];
-        foreach($tbNames as $tbName){
-            $len=$this->tbPos[$tbName]['length'];
-            $pos=$this->tbPos[$tbName]['offset'];
-            $newData[]=substr($this->data, $pos, $len);
-            $newTbPos[$tbName]=[
-                'pos'=>$newTbPosSum,
-                'len'=>$len
-            ];
-            $newTbPosSum+=$len;
-        }
+        
         $output=[
+            'type'=>$this->type,
             'psname'=>$psname,
             'unit'=>$this->mtx['unitsPerEm'],
             'gtw'=>$this->widths,
@@ -76,19 +89,27 @@ class TrueTypeLoader
             'loca'=>$this->loca,
             'tbPos'=>$newTbPos,
         ];
+        if($newJson) {
+            $output['cff']=$newJson;
+        }
         if($outputNmae===false) {
             $outputNmae=$psname;
         }
         file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.json', json_encode($output,  JSON_UNESCAPED_UNICODE| JSON_UNESCAPED_SLASHES| JSON_PRETTY_PRINT));        
-        file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
+        if($this->type==='TTF') {
+            file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
+        } else {
+            file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
+        }
     }
 
     private function getTables()
     {
         $arr=unpack('Nver/nnTables', $this->data);
-        if($arr['ver']!==0x00010000) {
+        if($arr['ver']!==0x00010000 && $arr['ver']!==0x4F54544F) {
             throw new \Exception('bad fomat');
         }
+        $this->type=$arr['ver']===0x00010000?'TTF':'OTF';
         $pos=12;
         $nTable=$arr['nTables'];
         for($i=0;$i<$nTable;++$i) {
@@ -147,9 +168,10 @@ class TrueTypeLoader
         }
         $numberOfHMetrics=unpack('n', $data, $pos+34)[1];
         $pos=$this->tbPos['hmtx']['offset'];
+        $endPos=$this->tbPos['hmtx']['length']+$pos;
         $widths=[];
         $bearings=[];
-        for($i=0;$i<$numberOfHMetrics;++$i) {
+        for($i=0;$i<$numberOfHMetrics && $pos+3<$endPos;++$i) {
             $advanceWidth=(ord($data[$pos])<<8|ord($data[1+$pos]));
             $lsb=(ord($data[2+$pos])<<8|ord($data[3+$pos]));
             $pos+=4;
@@ -157,7 +179,9 @@ class TrueTypeLoader
             $bearings[]=$lsb;
         }
         for(;$i<=$maxGid;++$i){
-            $lsb=(ord($data[$pos])<<8|ord($data[1+$pos]));
+            if($pos+1<$endPos) {
+                $lsb=(ord($data[$pos])<<8|ord($data[1+$pos]));
+            }
             $pos+=2;
             $widths[]=$advanceWidth;
             $bearings[]=$lsb;
@@ -213,34 +237,9 @@ class TrueTypeLoader
                 $this->mtx['capHeight']=$h;
                 return;
             }
-        }
-        $pos=$this->tbPos['loca']['offset'];
-        $fmt=$this->indexToLocFormat;
-        $gid=$this->utg[ord('H')]??false;
-        if($gid===false) {
-            throw new \Exception('no H in font');
-        }
-        if($fmt!==0 && $fmt!==1) {
-            throw new \Exception('bad indexToLocFormat');
-        }
-        if($fmt) {
-            $arr=unpack('N2', $data, $pos+$gid*4);
-            $offset=$arr[1];
-            $length=$arr[2]-$arr[1];
         } else {
-            $arr=unpack('n2', $data, $pos+$gid*2);
-            $offset=$arr[1]*2;
-            $length=($arr[2]-$arr[1])*2;
+            $this->mtx['capHeight']=$this->mtx['ascender'];
         }
-        $pos=$this->tbPos['glyf']['offset']+$offset;
-        $arr=unpack('n4', $data, $pos+2);
-        foreach($arr as $k=>$v) {
-            if($v>>15&1) {
-                $v=-((~$v&0xffff)+1);
-            }
-            $arr[$k]=$v;
-        }
-        $this->mtx['capHeight']=$arr[4]-$arr[2];
     }
 
     /**
@@ -294,5 +293,141 @@ class TrueTypeLoader
             }
         }
         $this->names=$result;
+    }
+
+    private function getCFFData()
+    {
+        $data=$this->data;
+        $cffOffset=$this->tbPos['CFF ']['offset'];
+        $pos=$cffOffset; //舊資料讀取到哪邊
+        $newData=[];
+        $newPos=[];
+        $newLen=0;
+        $newJson=[];
+        //Head And Name
+        $namePos=CFFLib::unpackIndexPos($data, $pos+ord($data[$pos+2]));
+        $tmpData=substr($data, $pos, $namePos['e']-$pos);
+        $this->pushNewData('headAndName', $tmpData, $newPos, $newData, $newLen);
+        $pos=$namePos['e'];
+        //topDict 存 json
+        $topDictPos=CFFLib::unpackIndexPos($data, $pos);
+        $start=$topDictPos['arr'][0];
+        $end=$topDictPos['arr'][1];
+        $topDict=CFFLib::unpackDict($data, $start, $end-$start, CFFLib::TOP_DICT_OPERATORS);
+        $newJson['topDict']=&$topDict;
+        $pos=$topDictPos['e'];
+        //strings and gSubr
+        $stringPos=CFFLib::unpackIndexPos($data, $pos);
+        $gSubrPos=CFFLib::unpackIndexPos($data, $stringPos['e']);
+        $tmpData=substr($data, $pos, $gSubrPos['e']-$pos);
+        $this->pushNewData('stringAndGSubr', $tmpData, $newPos, $newData, $newLen);
+        $pos=$gSubrPos['e'];
+        //CharStrings，index 資訊改儲存於 json
+        $pos=$cffOffset+$topDict['CharStrings'];
+        $charStringPos=CFFLib::unpackIndexPos($data, $pos);
+        $start=$charStringPos['arr'][0];
+        $end=$charStringPos['arr'][$charStringPos['c']];
+        $tmpData=substr($data, $start, $end-$start);
+        $this->pushNewData('charStrings', $tmpData, $newPos, $newData, $newLen);
+        $newJson['charStrings']=$this->resetPos($charStringPos['arr']);
+        //Private and psubr
+        if(isset($topDict['Private'])) {
+            $pos=$cffOffset+$topDict['Private'][1];
+            $len=$topDict['Private'][0];
+            $privateDict=CFFLib::unpackDict($data, $pos, $len, CFFLib::PRIVATE_DICT_OPERATORS);
+            if(isset($privateDict['Subrs'])) {                
+                $pos+=$privateDict['Subrs'];
+                $pSubrPos=CFFLib::unpackIndexPos($data, $pos);
+                $privLen=CFFLib::calDictLen($privateDict, CFFLib::PRIVATE_DICT_OPERATORS, ['Subrs']);
+                $privateDict['Subrs']=$privLen; //把 subr 直接接在 private 後面
+                $tmpData=
+                    CFFLib::packDict($privateDict, CFFLib::PRIVATE_DICT_OPERATORS, ['Subrs']).
+                    substr($data, $pSubrPos['s'], $pSubrPos['e']-$pSubrPos['s']);
+            } else {
+                $privLen=$topDict['Private'][0];
+                $tmpData=substr($data, $cffOffset+$topDict['Private'][1], $privLen);
+            }
+            $topDict['Private']=[$privLen, 0];
+            $this->pushNewData('private', $tmpData, $newPos, $newData, $newLen);
+        }
+        //FDArray
+        if(isset($topDict['FDArray'])) {
+            $pos=$cffOffset+$topDict['FDArray'];
+            $fdArrPos=CFFLib::unpackIndexPos($data, $pos);
+            $n=$fdArrPos['c'];
+            $tmp=[];
+            for($i=0;$i<$n;++$i) {
+                $start=$fdArrPos['arr'][$i];
+                $end=$fdArrPos['arr'][$i+1];
+                $tmp[]=CFFLib::unpackDict($data, $start, $end-$start, CFFLib::TOP_DICT_OPERATORS);
+                if(isset($tmp[$i]['Private'])) {
+                    $pos=$cffOffset+$tmp[$i]['Private'][1];
+                    $len=$tmp[$i]['Private'][0];
+                    $privateDict=CFFLib::unpackDict($data, $pos, $len, CFFLib::PRIVATE_DICT_OPERATORS);
+                    if(isset($privateDict['Subrs'])) {
+                        $pos+=$privateDict['Subrs'];
+                        $pSubrPos=CFFLib::unpackIndexPos($data, $pos);
+                        $privLen=CFFLib::calDictLen($privateDict, CFFLib::PRIVATE_DICT_OPERATORS, ['Subrs']);
+                        $privateDict['Subrs']=$privLen; //把 subr 直接接在 private 後面
+                        $tmpData=
+                            CFFLib::packDict($privateDict, CFFLib::PRIVATE_DICT_OPERATORS, ['Subrs']).
+                            substr($data, $pSubrPos['s'], $pSubrPos['e']-$pSubrPos['s']);
+                    } else {
+                        $privLen=$tmp[$i]['Private'][0];
+                        $tmpData=substr($data, $cffOffset+$tmp[$i]['Private'][1], $privLen);
+                    }
+                    $tmp[$i]['Private']=[$privLen, 0];
+                    $this->pushNewData('FDPriv-'.$i, $tmpData, $newPos, $newData, $newLen);
+                }
+            }
+            $newJson['fdArray']=$tmp;
+        }
+        //FDSelect
+        $nGlyf=$charStringPos['c'];
+        if(isset($topDict['FDSelect'])) {
+            $pos=$cffOffset+$topDict['FDSelect'];
+            $fmt=ord($data[$pos++]);
+            $tmpData='';
+            if($fmt===0) {
+                $tmpData=substr($data, $pos, $nGlyf);
+            } elseif($fmt===3) {
+                $nRanges=ord($data[$pos])<<8|ord($data[$pos+1]);
+                $pos+=2;
+                $first=ord($data[$pos])<<8|ord($data[$pos+1]);
+                $pos+=2;
+                for($i=0;$i<$nRanges;++$i) {
+                    $fd=$data[$pos++];
+                    $nextFirst=ord($data[$pos])<<8|ord($data[$pos+1]);
+                    $pos+=2;
+                    $tmpData.=str_repeat($fd, $nextFirst-$first);
+                    $first=$nextFirst;
+                }
+            } else {
+                throw new \Exception('FDSelect: unknow format');
+            }
+            $this->pushNewData('fdSelect', $tmpData, $newPos, $newData, $newLen);
+        }
+        return [$newJson, $newPos, $newData];
+    }
+
+    private function pushNewData($key, $value, &$newPos, &$newData, &$newLen)
+    {
+        $len=strlen($value);
+        $newData[]=$value;
+        $newPos[$key]=[
+            'pos' => $newLen,
+            'len' => $len
+        ];
+        $newLen+=$len;
+    }
+
+    private function resetPos(&$arr)
+    {
+        $n=count($arr);
+        $first=$arr[0];
+        for($i=0;$i<$n;++$i){
+            $arr[$i]-=$first;
+        }
+        return $arr;
     }
 }
