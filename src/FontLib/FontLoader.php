@@ -4,7 +4,7 @@ namespace ren1244\PDFWriter\FontLib;
 use ren1244\PDFWriter\FontLib\CmapEncoding;
 use ren1244\PDFWriter\Config;
 
-class TrueTypeLoader
+class FontLoader
 {
     private $data;
     private $tbPos=[];

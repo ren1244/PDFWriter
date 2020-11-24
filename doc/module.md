@@ -25,13 +25,16 @@ $pdf->test->addText 實際上是執行 Text 類別內的 addText 方法。
 
 ## 註冊模組
 
-必須讓 PDFWriter 知道我們寫了一個模組，所以必須透過 Config.php 的 Modules 常數來設定載入的模組。這是一個陣列，由「模組名稱」映射到「類別名稱」。
+必須讓 PDFWriter 知道我們寫了一個模組，有以下兩種方式：
+
+1. 修改 Config.php 的 Modules 常數的內容。這是一個陣列，由「模組名稱」映射到「類別名稱」。
+2. 使用者建立 PDFWriter 物件時，可以傳入第二個參數：「模組名稱」映射到「類別名稱」的陣列。這個方式更適合把 PDFWriter 核心與其他功能分離開。
 
 ## 使用文字與字型
 
 ### 用 constructor 取得 FontController
 
-在 constructor 中，可以透過參數取得 FontController 物件
+在模組物件的 constructor 中，可以透過參數取得 FontController 物件
 (namespace 的問題這邊就不贅述了)
 
     public function __construct(FontController $ftCtrl)

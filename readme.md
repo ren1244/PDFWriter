@@ -7,7 +7,7 @@
 ## 專案的方向
 
 * 支援全範圍 unicode（現在很多 PHP PDF 函式庫只支援到[基本多文種平面](https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)）
-* 至少支援 TTF 與 OTF 字型，或是更多種。（目前只支援 TTF）
+* 至少支援 TTF 與 OTF 字型，或是更多種。（目前 TTF 跟 OTF 都可以使用）
 * 當字型缺字時，自動切換為後補字型。這個可以達到英數與中文字採用不同字型的效果。
 * 提供擴充的介面，讓其他開發者依需求擴充自己需要的模組。
 
@@ -28,6 +28,8 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 ### 安裝
 
     composer require ren1244/pdfwriter:v1.0.0-alpha
+
+PS. 開發中暫時不會再動 packagist，建議直接用 git clone ，以取得最新功能。
 
 ### 使用
 
@@ -69,17 +71,7 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 
 #### 字型
 
-使用字型前，除了 PDF 預設的 13 種字型外
-其他字型必須先在命令列透過 scripts/addTTF.php 做處理
-轉換成 PDFWriter 可以使用的資料
-
-    php scripts/addTTF.php 字型檔案
-
-轉換後應該可以在 src/fonts 資料夾中找到該字型的 json 檔案
-我們把 json 的檔名稱為「字型名稱」
-轉換完成後，就可以開始使用了。
-
-在 PDF 中添加字型
+在 PDF 中嵌入字型
 
     $pdf->font->addFont(字型名稱);
 
@@ -94,6 +86,29 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
         B字型名稱 => B字型大小,
         ...
     ]);
+
+##### 自訂字型
+
+除了 PDF 預設的 13 種字型（只能輸出英數字元）外，這個專案不預裝任何字型。
+
+想安裝字型，先準備一個字型檔，然後使用 FontLoader 的 loadFile 方法。
+
+    <?php
+    use use ren1244\PDFWriter\FontLib\FontLoader;
+    $loader = new FontLoader;
+    //$fname 是來源字型的檔案路徑
+    //$outname 是輸出的名稱，同時也是之後使用這個字型的名稱
+    $loader->loadFile($fname, $outname);
+
+如果載入成功，font 資料夾會多出 {outname}.json 與 {outname}.bin 兩個檔案。
+未來想移除字型刪除這兩個檔案即可。
+
+另一個安裝字型的方式是使用 scripts 資料夾中的 addFont.php。
+這是在 console 環境跑的 script（使用前可能要修正一下 require 的路徑）
+
+    php addFont.php {fname} {outname}
+
+PS. 以上兩種安裝方式，outname 可以省略，此時 outname 會依據字型檔案內的資料自動產生。
 
 #### 文字
 
