@@ -138,6 +138,12 @@ PS. 每頁的 rect 是獨立的，不跨頁使用。
 
 注意單位是預設單位，如果想強制使用 Pt，可以使用 PageMetrics::Pt 函式轉換
 
+#### 點陣圖
+
+目前僅支援 jpeg（其他格式還在開發中）
+
+    $pdf->image->addImage(檔案路徑, x座標, y座標, 寬度(可選), 高度(可選));
+
 #### 單位
 
 上面的 text 跟 PostscriptGragh 單位都會是「目前單位」，預設是 mm

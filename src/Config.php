@@ -4,6 +4,7 @@ namespace ren1244\PDFWriter;
 class Config
 {
     const Modules=[
+        'image'=> Module\Image::class,
         'text' => Module\Text::class,
         'postscriptGragh'=> Module\PostscriptGragh::class,
         'textBox'=> Module\TextBox::class,

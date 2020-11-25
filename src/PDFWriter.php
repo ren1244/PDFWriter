@@ -5,6 +5,7 @@ class PDFWriter
 {
     private $writer;
     private $ftCtrl;
+    private $imgRes;
     private $autoHeader;
     
     private $pages=[]; //{width:num, height:num, contents:[int(index of $this->contents),...]}
@@ -23,6 +24,7 @@ class PDFWriter
     {
         $this->writer=new StreamWriter($fp);
         $this->ftCtrl=new FontController;
+        $this->imgRes=new ImageResource;
         $this->catalogId=$this->writer->preserveId();
         $this->pageTreeId=$this->writer->preserveId();
         $this->resourceId=$this->writer->preserveId();
@@ -128,8 +130,12 @@ class PDFWriter
             $pdf->writeStream($contentStreamData, false/* StreamWriter::COMPRESS*/, [], $id);
         }
         //resources
-        $ftStr=$this->ftCtrl->write($pdf);
-        $pdf->writeDict("$ftStr", $this->resourceId);
+        $resArr=[];
+        foreach([$this->ftCtrl, $this->imgRes] as $res) {
+            $resArr[]=$res->write($pdf);
+        }
+
+        $pdf->writeDict(implode("\n", $resArr), $this->resourceId);
         //finish
         $pdf->writeFinish($this->catalogId);
     }
@@ -160,6 +166,9 @@ class PDFWriter
                 $depName=$params[$i]->getClass()->getName();
                 if($depName===FontController::class) {
                     $argList[]=$this->ftCtrl;
+                    continue;
+                } elseif($depName===ImageResource::class) {
+                    $argList[]=$this->imgRes;
                     continue;
                 }
                 $depKey=$this->moduleClassToKey[$depName];

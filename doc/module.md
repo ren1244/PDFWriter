@@ -18,7 +18,8 @@ $pdf->test->addText 實際上是執行 Text 類別內的 addText 方法。
 1. 可以有一個 constructor，constructor 的參數必須有 type hint 作為依賴注入的參考。能夠被依賴注入的類型有：
     1. FontController：提供字型資訊，例如每個字的寬度是多少等。
     2. PageMetrics：提供當前頁面的尺寸
-    3. 其他內容模組類別
+    3. ImageResource：註冊並取得點陣圖的資源ID。
+    4. 其他內容模組類別
 2. 必須有一個 write 方法，且有一個參數 $streamWriter ，這是一個 StreamWriter 物件。write 方法可以使用 $streamWriter->writeStream 將 content stream 寫到 PDF。 content stream 由 [PDF32000_2008](https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf) 定義。如果這個內容模組只是重新包裝其他內容模組，則回傳 false 就好。
 3. 除了 construct 跟 write 方法之外的其他 public 方法，都可以透過 $pdf->{模組名稱}->模組方法 給使用者呼叫。
 4. 開發時要注意使用者在同一頁會多次呼叫，所以一般都會有個 buffer 儲存每次要寫入的資料，直到 write 方法被 PDFWriter 呼叫才真正寫出來。
