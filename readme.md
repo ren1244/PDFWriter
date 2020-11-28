@@ -27,9 +27,7 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 
 ### 安裝
 
-    composer require ren1244/pdfwriter:v1.0.0-alpha
-
-PS. 開發中暫時不會再動 packagist，建議直接用 git clone ，以取得最新功能。
+    composer require ren1244/pdfwriter:dev-main
 
 ### 使用
 
@@ -140,9 +138,15 @@ PS. 每頁的 rect 是獨立的，不跨頁使用。
 
 #### 點陣圖
 
-支援 jpeg 與 png
+目前支援的格式有 png 跟 jpeg，其他格式要先轉換一下
+
+加入點陣圖檔案
 
     $pdf->image->addImage(檔案路徑, x座標, y座標, 寬度(可選), 高度(可選));
+
+或是已經取得檔案內容，則使用 addImageRaw 方法
+
+    $pdf->image->addImageRaw(檔案內容, x座標, y座標, 寬度(可選), 高度(可選));
 
 #### 單位
 

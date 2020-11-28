@@ -10,25 +10,32 @@ namespace ren1244\PDFWriter;
 class ImageResource
 {
     private $id=0;
-    private $images=[]; //filename => key
+    private $images=[];
 
-    public function addImage($fileName)
+    public function addImage($nameOrData, $rawData=false)
     {
-        if(!file_exists($fileName)) {
-            throw new \Exception('image file does not exists');
+        if($rawData) {
+            $info=getimagesizefromstring($nameOrData);
+            $info['data']=$nameOrData;
+        } else {
+            if(!file_exists($nameOrData)) {
+                throw new \Exception('image file does not exists');
+            }
+            $info=getimagesize($nameOrData);
+            $info['filename']=$nameOrData;
         }
-        $info=getimagesize($fileName);
+        
         $info['key']='IM'.(++$this->id);
-        $this->images[$fileName]=$info;
+        $this->images[]=$info;
         return [$info['key'], $info[0], $info[1]];
     }
 
     public function write($writer)
     {
         $arr=[];
-        foreach($this->images as $fname=>$info) {
+        foreach($this->images as $info) {
             if($info['mime']==='image/jpeg') {
-                $data=file_get_contents($fname);
+                $data=$info['data']??file_get_contents($info['filename']);
                 $id=$writer->writeStream($data, false, [
                     'Type' => '/XObject',
                     'Subtype' => '/Image',
@@ -40,7 +47,7 @@ class ImageResource
                 ]);
                 $arr[]="/{$info['key']} $id 0 R";
             } elseif($info['mime']==='image/png') {
-                $id=self::addPNG($fname, $writer);
+                $id=self::addPNG($info, $writer);
                 $arr[]="/{$info['key']} $id 0 R";
             } else {
                 throw new \Exception('unsupport image format');
@@ -49,9 +56,9 @@ class ImageResource
         return '/XObject << '.implode("\n", $arr).' >>';
     }
 
-    private static function addPNG($fname, $writer)
+    private static function addPNG($info, $writer)
     {
-        $data=file_get_contents($fname);
+        $data=$info['data']??file_get_contents($info['filename']);
         $n=strlen($data);
         $idat='';
         $tRns=false;
