@@ -6,7 +6,6 @@ class PDFWriter
     private $writer;
     private $ftCtrl;
     private $imgRes;
-    private $autoHeader;
     
     private $pages=[]; //{width:num, height:num, contents:[int(index of $this->contents),...]}
     private $contents=[]; //stream contents
@@ -20,9 +19,15 @@ class PDFWriter
     private $contentModules;
     private $moduleClassToKey;
 
-    public function __construct($fp=false, $withModules=[])
+    /**
+     * 建立 PDFWriter 物件
+     * 
+     * @param array $withModules 額外載入的模組，格式為 [模組名=>class 名稱, ...]
+     * @return void
+     */
+    public function __construct($withModules=[])
     {
-        $this->writer=new StreamWriter($fp);
+        $this->writer=new StreamWriter;
         $this->ftCtrl=new FontController;
         $this->imgRes=new ImageResource;
         $this->catalogId=$this->writer->preserveId();
@@ -31,9 +36,14 @@ class PDFWriter
         $this->contentModules=Config::Modules+$withModules;
         $this->moduleClassToKey=array_flip($this->contentModules);
         $this->moduleClassToKey[PageMetrics::class]='metrics';
-        $this->autoHeader=$fp===false?true:false;
     }
 
+    /**
+     * 取得模組物件
+     * 
+     * @param string $name 模組名稱
+     * @return object 模組物件
+     */
     public function __get($name)
     {
         if($name==='font') {
@@ -48,15 +58,23 @@ class PDFWriter
         throw new \Exception('Content module not found');
     }
 
-    public function addPage($width, $height=false)
+    /**
+     * 新增一頁
+     * 
+     * @param int|string $widthOrName 如果是整數，代表寬度，單位為目前設定的單位。
+     *                                如果是字串，依據預設的紙張類型設定寬高。
+     * @param int $height 高度，單位為目前設定的單位
+     * @return void
+     */
+    public function addPage($widthOrName, $height=false)
     {
         if($height===false) {
-            $arr=Config::PAGE_SIZE[$width];
+            $arr=Config::PAGE_SIZE[$widthOrName];
             $width=$arr[0];
             $height=$arr[1];
         } else {
             $height=PageMetrics::getPt($height);
-            $width=PageMetrics::getPt($width);
+            $width=PageMetrics::getPt($widthOrName);
         }
         $mtx=new PageMetrics($width, $height);
         $curPage=['metrics'=>$mtx, 'contents'=>[]];
@@ -70,26 +88,23 @@ class PDFWriter
         $this->pages[$this->currentPageIdx]['text']->setRect([0,0,$width,$height],$width,$height);
     }
 
-    public function addContent($content)
+    /**
+     * 輸出 PDF
+     * 
+     * @param object $fp file pointer object
+     * @return void
+     */
+    public function output($fp=false)
     {
-        if(is_null(array_key_last($this->pages))) {
-            $this->addPage('A4');
-        }
-        $this->contents[]=$content;
-        $this->pages[$this->currentPageIdx]['contents'][]=
-            array_key_last($this->contents);
-    }
-
-    public function output()
-    {
-        if($this->autoHeader) {
-            header('Content-Type: application/pdf');
-        }
         if(is_null(array_key_last($this->pages))) {
             $this->addPage('A4');
         }
         $this->ftCtrl->subset();
         $pdf=$this->writer;
+        $pdf->setOutputTarget($fp);
+        if($fp===false) {
+            header('Content-Type: application/pdf');
+        }
         //hrader
         $pdf->writeLine('%PDF-1.4');
         $pdf->writeLine('%'.hex2bin('B6EABAA1'));
@@ -140,6 +155,12 @@ class PDFWriter
         $pdf->writeFinish($this->catalogId);
     }
 
+    /**
+     * 預留 pdf obj id 供之後使用
+     * 
+     * @param int $n 要保留的個數
+     * @return array 已保留的 pdf obj id 陣列
+     */
     private function preserveIdArray($n)
     {
         $arr=[];
@@ -149,6 +170,13 @@ class PDFWriter
         return $arr;
     }
 
+    /**
+     * 在某個頁面上建立 Content Module 物件
+     * 
+     * @param string $className 類別名稱
+     * @param array &$page 頁面相關的資訊
+     * @return void
+     */
     private function createContentModuleEntity($className, &$page)
     {
         $reflector=new \ReflectionClass($className);

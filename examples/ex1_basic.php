@@ -20,7 +20,7 @@ $pdf->text->setRect([10, 10, 100, 100]);
 $pdf->text->addText('Hello', 0, 'top');
 
 //畫線 (這邊是畫一個三角形)
-$pdf->postscriptGragh->addPath('20 20 m 10 40 l 30 40 l 20 20 l S', PageMetrics::Pt(0.5));
+$pdf->postscriptGragh->addPath('20 20 m 10 40 l 30 40 l 20 20 l S', PageMetrics::getUnit(0.5));
 
 //輸出
 $pdf->output();

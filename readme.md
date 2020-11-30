@@ -59,12 +59,10 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 
 預設是把 pdf 直接回應給使用者
 如果想儲存在伺服器內的檔案
-可以給予在建立 PDFWriter 物件時指定一個 file pointer resource
+可以給予在 output 時指定一個 file pointer resource
 
     $fp=fopen('output.pdf', 'wb');
-    $pdf=new PDFWriter($fp);
-    //其他程式碼...
-    $pdf->output();
+    $pdf->output($fp);
     fclose($fp);
 
 #### 字型
@@ -132,9 +130,9 @@ PS. 每頁的 rect 是獨立的，不跨頁使用。
 
 例如想畫一條從 (10, 10) 到 (20, 30) 的直線
 
-    $pdf->PostscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::Pt(1));
+    $pdf->PostscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::getUint(1));
 
-注意單位是預設單位，如果想強制使用 Pt，可以使用 PageMetrics::Pt 函式轉換
+PS. 由於 addPath 的單位是預設單位，所以線寬希望是 1 pt 時，可以用 PageMetrics::getUint(1) 把 pt 轉換為 unit 單位。
 
 #### 點陣圖
 

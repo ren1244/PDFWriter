@@ -12,6 +12,17 @@ class ImageResource
     private $id=0;
     private $images=[];
 
+    //============ 以下函式提供給 Content Module 呼叫 ============
+
+    /**
+     * 在 PDF 中添加向量圖
+     * 這類似字型，只是添加到 resource 中
+     * 顯示圖片由 content module 負責
+     * 
+     * @param string $nameOrData 檔案名稱或是已圖取的檔案內容
+     * @param bool $rawData 是否為檔案內容
+     * @return array [PDF圖片ID, 寬度, 高度]
+     */
     public function addImage($nameOrData, $rawData=false)
     {
         if($rawData) {
@@ -30,6 +41,14 @@ class ImageResource
         return [$info['key'], $info[0], $info[1]];
     }
 
+    //============ 以下函式由 pdfwriter 內部呼叫 ============
+
+    /**
+     * 寫入圖片 dict 並回傳資源的 /XObject 項目
+     * 
+     * @param object $writer StreamWriter 物件
+     * @return string 資源的 /XObject 項目
+     */
     public function write($writer)
     {
         $arr=[];
@@ -56,6 +75,13 @@ class ImageResource
         return '/XObject << '.implode("\n", $arr).' >>';
     }
 
+    /**
+     * 加入 png 圖片
+     * 
+     * @param object $info 圖片資訊
+     * @param object $writer StreamWriter 物件
+     * @return int pdf obj id
+     */
     private static function addPNG($info, $writer)
     {
         $data=$info['data']??file_get_contents($info['filename']);
@@ -65,6 +91,7 @@ class ImageResource
         $idatLen=0;
         $plte=false;
         $plteLen=0;
+        //抓出 IHDR、PLTE、tRNS 的區塊
         for($p=8;$p<$n;) {
             $sz=ord($data[$p])<<24|ord($data[$p+1])<<16|ord($data[$p+2])<<8|ord($data[$p+3]);
             $name=substr($data, $p+4, 4);
@@ -93,6 +120,7 @@ class ImageResource
             $colorSapce=($info['type']&3)===0?'/DeviceGray':'/DeviceRGB';
         }
         $maskId=false;
+        //type 4 跟 type 6 有 alpha 資訊，分離出來，同時取得沒有 alpha 通道的 idat
         if($info['type']>3) {
             $h=$info['h'];
             $w=$info['w'];
@@ -228,7 +256,7 @@ class ImageResource
             --$nColors;
             $idat=substr($idat, 0, ($bpp1*$w+1)*$h);
             $idatLen=strlen($idat);
-            $idat=gzcompress($idat);
+            $idat=gzcompress($idat, Config::GZIP_LEVEL);
             $maskId=$writer->writeStream($trns, StreamWriter::COMPRESS, [
                 'Type' => '/XObject',
                 'Subtype' => '/Image',

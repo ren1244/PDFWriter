@@ -2,29 +2,34 @@
 namespace ren1244\PDFWriter;
 
 /**
- * 提供寫入到檔案等
+ * 刻出 pdf 最基本工具
+ * 這裡提供寫入 Dict、Stream 等函式
+ * 並自動產生 xref 跟 trailer
  */
 class StreamWriter
 {
-    const GZIP=1;
-    const FLATEDECODE=2;
-    const COMPRESS=3;
-    private $ofp;
-    private $closeFlag;
+    //以下三個 const 用於 writeStream 的 flag
+    const GZIP=1; //使用 gzcompress 壓縮資料，但不管 Filter 項目
+    const FLATEDECODE=2; //自動添加 FlateDecode Filter，但不管資料是不是真的有壓所
+    const COMPRESS=3; //使用 gzcompress 壓縮資料，並自動添加 FlateDecode Filter
+
+    private $ofp; //輸出的目標
+    private $closeFlag=false;
     private $idCount=0;
     private $preserveIdTable=[];
     private $posTable=[];
     private $pos=0;
     
+    /**
+     * 建立 StreamWriter 物件
+     * 
+     * @param object|false $fp 輸出目標的 file point resource
+     *                     如果沒給，會自動用 php://output 為輸出目標
+     * @return void
+     */
     public function __construct($fp=false)
     {
-        if($fp) {
-            $this->ofp=$fp;
-            $this->closeFlag=false;
-        } else {
-            $this->ofp=fopen('php://output', 'wb');
-            $this->closeFlag=true;
-        }
+        $this->ofp=$fp;
     }
 
     public function __destruct()
@@ -34,6 +39,26 @@ class StreamWriter
         }
     }
 
+    /**
+     * 設定輸出目標
+     * 
+     * @param object|false $fp 輸出目標的 file point resource
+     *                     如果沒給，會自動用 php://output 為輸出目標
+     * @return void
+     */
+    public function setOutputTarget($fp)
+    {
+        if($this->ofp!==false) {
+            throw new \Exception('cannot set output target twice');
+        }
+        $this->ofp=$fp;
+    }
+
+    /**
+     * 保留一個 obj id 並回傳
+     * 
+     * @return int 預先保留的 obj id
+     */
     public function preserveId()
     {
         $id=++$this->idCount;
@@ -41,6 +66,25 @@ class StreamWriter
         return $id;
     }
 
+    /**
+     * 直接寫入一行內容，後面會自動加上 "\n"
+     * 
+     * @param string $content 要寫入的內容
+     * @return void
+     */
+    public function writeLine($content)
+    {
+        $this->initOutputTarget();
+        fwrite($this->ofp, "$content\n");
+        $this->pos+=strlen($content)+1;
+    }
+
+    /**
+     * 寫入到 dict
+     * 
+     * @param string $constet 這個dict 內的內容
+     * @param int|false $id 預先保留的 id，如果不給就是新增一個 id
+     */
     public function writeDict($content, $id=false)
     {
         $this->initId($id);
@@ -51,25 +95,16 @@ class StreamWriter
         return $id;
     }
 
-    public function writeFinish($rootId)
-    {
-        $xrefPos=$this->pos;
-        $n=$this->idCount;
-        $this->writeLine(sprintf("xref\n0 %d\n0000000000 65535 f ", $n+1));
-        for($i=1;$i<=$n;++$i) {
-            $this->writeLine(sprintf("%010d 00000 n ", $this->posTable[$i]));
-        }
-        $this->writeLine('trailer');
-        $this->writeLine('<<');
-        $this->writeLine(sprintf('/Size %d', $n+1));
-        $this->writeLine(sprintf('/Root %d 0 R', $rootId));
-        $this->writeLine('>>');
-        $this->writeLine('startxref');
-        $this->writeLine($xrefPos);
-        $this->writeLine('%%EOF');
-    }
-
-    public function writeStream($content, $compressFlag=false, $entries=[], $id=false)
+    /**
+     * 寫入一個 stream
+     * 
+     * @param string $content stream 的內容
+     * @param int $compressFlag 壓縮相關設定，參考 StreamWriter 的 const
+     * @param array $entries 添加 dict 區塊資料
+     * @param int|false $id 預先保留的 id，如果不給就是新增一個 id
+     * @return int $id obj id
+     */
+    public function writeStream($content, $compressFlag=0, $entries=[], $id=false)
     {
         $this->initId($id);
         if($compressFlag&StreamWriter::GZIP) {
@@ -93,10 +128,28 @@ class StreamWriter
         return $id;
     }
 
-    public function writeLine($content)
+    /**
+     * 寫入最後的內容，像是 xref、trailer 等
+     * 
+     * @param int $rootId catalog dict 的 id
+     * @return void
+     */
+    public function writeFinish($rootId)
     {
-        fwrite($this->ofp, "$content\n");
-        $this->pos+=strlen($content)+1;
+        $xrefPos=$this->pos;
+        $n=$this->idCount;
+        $this->writeLine(sprintf("xref\n0 %d\n0000000000 65535 f ", $n+1));
+        for($i=1;$i<=$n;++$i) {
+            $this->writeLine(sprintf("%010d 00000 n ", $this->posTable[$i]));
+        }
+        $this->writeLine('trailer');
+        $this->writeLine('<<');
+        $this->writeLine(sprintf('/Size %d', $n+1));
+        $this->writeLine(sprintf('/Root %d 0 R', $rootId));
+        $this->writeLine('>>');
+        $this->writeLine('startxref');
+        $this->writeLine($xrefPos);
+        $this->writeLine('%%EOF');
     }
 
     private function initId(&$id)
@@ -109,6 +162,15 @@ class StreamWriter
             } else {
                 throw new \Exception('ID 必須先保留');
             }
+        }
+        $this->initOutputTarget();
+    }
+
+    private function initOutputTarget()
+    {
+        if($this->ofp===false) {
+            $this->ofp=fopen('php://output', 'wb');
+            $this->closeFlag=true;
         }
     }
 }
