@@ -7,7 +7,6 @@ use ren1244\PDFWriter\PageMetrics;
 class PostscriptGragh
 {
     private $mtx;
-    private $data=[];
 
     public function __construct(PageMetrics $mtx)
     {
@@ -16,22 +15,22 @@ class PostscriptGragh
 
     public function addPath($postScript, $lineWidth)
     {
-        $this->data[]=[
+        $this->mtx->pushData($this, [
             'lineWidth'=>$lineWidth,
             'scale'=>PageMetrics::getScale(),
             'data'=>$postScript
-        ];
+        ]);
     }
 
-    public function write($writer)
+    public function write($writer, $datas)
     {
         $h=$this->mtx->height;
-        foreach($this->data as $idx=>$data) {
+        foreach($datas as $idx=>$data) {
             $scale=$data['scale'];
             $w=$data['lineWidth'];
             $content=$data['data'];
-            $this->data[$idx]="q $scale 0 0 -$scale 0 $h cm $w w $content Q";
+            $datas[$idx]="q $scale 0 0 -$scale 0 $h cm $w w $content Q";
         }
-        return $writer->writeStream(implode(' ', $this->data), StreamWriter::COMPRESS);
+        return $writer->writeStream(implode(' ', $datas), StreamWriter::COMPRESS);
     }
 }

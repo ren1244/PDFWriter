@@ -76,13 +76,13 @@ class Text
                     $outOfRangeFlag=true;
                     break;
                 }
-                $this->data[]=[
+                $this->mtx->pushData($this, [
                     'psName'=>$curPsName,
 	                'size'=>$ftSizeTable[$curPsName],
 	                'x'=>$sx,
 	                'y'=>$sy,
 	                'str'=>substr($text, $pos, $len)
-                ];
+                ]);
                 $this->posX=$x;
                 $this->posY=$y;
                 $pos+=$len+($c===10?2:0);
@@ -107,13 +107,13 @@ class Text
             }
         }
         if($len>0 && !$outOfRangeFlag) {
-            $this->data[]=[
+            $this->mtx->pushData($this, [
                 'psName'=>$curPsName,
                 'size'=>$ftSizeTable[$curPsName],
                 'x'=>$sx,
                 'y'=>$sy,
                 'str'=>substr($text, $pos, $len)
-            ];
+            ]);
             $this->posX=$x;
             $this->posY=$y;
         }
@@ -123,10 +123,10 @@ class Text
     /**
      * 這個函式不由使用者呼叫
      */
-    public function write($writer)
+    public function write($writer, $datas)
     {
         $s=[];
-        foreach($this->data as $data) {
+        foreach($datas as $data) {
             $str=$this->ftCtrl->getTextContent($data['psName'], $data['str']);
             $ftName=$this->ftCtrl->getFontName($data['psName']);
             $s[]="BT /$ftName ${data['size']} Tf ${data['x']} ${data['y']} Td <$str> Tj ET";

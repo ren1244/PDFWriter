@@ -11,6 +11,7 @@ class PageMetrics
     public $width; //頁面寬度，單位固定為 pt
     public $height; //頁面高度，單位固定為 pt
     public static $unit='mm';
+    public $dataQueue=[]; //資料佇列，[[classname, data], ...]
 
     /**
      * 將 num pt 轉換為目前單位
@@ -79,5 +80,13 @@ class PageMetrics
     {
         $this->width=$width;
         $this->height=$height;
+    }
+
+    /**
+     * 將資料加入佇列
+     */
+    public function pushData($module, $data)
+    {
+        $this->dataQueue[]=[$module, $data];
     }
 }

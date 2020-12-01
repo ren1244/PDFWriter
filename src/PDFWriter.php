@@ -77,7 +77,7 @@ class PDFWriter
             $width=PageMetrics::getPt($widthOrName);
         }
         $mtx=new PageMetrics($width, $height);
-        $curPage=['metrics'=>$mtx, 'contents'=>[]];
+        $curPage=['metrics'=>$mtx];
         foreach($this->contentModules as $key=>$className) {
             if(!isset($curPage[$key])) {
                 $this->createContentModuleEntity($className, $curPage);
@@ -116,18 +116,32 @@ class PDFWriter
         $kids=implode(' 0 R ', $pageIds);
         $pdf->writeDict("/Type /Pages\n/Kids [$kids 0 R]\n/Count $nPages", $this->pageTreeId);
         //pages
-        $nContents=count($this->contents);
-        $contentIds=$this->preserveIdArray($nContents);
         foreach($this->pages as $i=>&$page) {
-            $cidList=$page['contents'];
             $tmpIds=[];
-            if(count($cidList)>0) {
-                foreach($cidList as $x) {
-                    $tmpIds[]=$contentIds[$x];
+            $queue=&$page['metrics']->dataQueue;
+            //var_dump($queue);
+            $nData=count($queue);
+            if($nData>0){
+                $dataBeginIdx=0;
+                $curModule=$queue[0][0];
+                for($k=1;$k<$nData;++$k) {
+                    if($queue[$k][0]!==$curModule) {
+                        // 從 dataBeginIdx ~ k-1 都是 curModule
+                        $csId=$curModule->write(
+                            $pdf,
+                            array_column(array_slice($queue, $dataBeginIdx, $k-$dataBeginIdx), 1)
+                        );
+                        if($csId!==false) {
+                            $tmpIds[]=$csId;
+                        }
+                        $curModule=$queue[$k][0];
+                        $dataBeginIdx=$k;
+                    }
                 }
-            }
-            foreach($this->contentModules as $key=>$className) {
-                $csId=$page[$key]->write($pdf);
+                $csId=$curModule->write(
+                    $pdf,
+                    array_column(array_slice($queue, $dataBeginIdx, $nData-$dataBeginIdx), 1)
+                );
                 if($csId!==false) {
                     $tmpIds[]=$csId;
                 }

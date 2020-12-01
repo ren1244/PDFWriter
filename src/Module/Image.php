@@ -9,7 +9,6 @@ class Image
 {
     private $mtx;
     private $imgRes;
-    private $data=[];
 
     public function __construct(PageMetrics $mtx, ImageResource $imgRes)
     {
@@ -29,13 +28,13 @@ class Image
         $this->_addImage($nameId, $imgW, $imgH, $x, $y, $w, $h);
     }
 
-    public function write($writer)
+    public function write($writer, $data)
     {
-        if(count($this->data)===0) {
+        if(count($data)===0) {
             return false;
         }
         $streamArr=[];
-        foreach($this->data as $imgData) {
+        foreach($data as $imgData) {
             $y=$this->mtx->height - $imgData[2] - $imgData[4];
             $streamArr[]="q {$imgData[3]} 0 0 {$imgData[4]} {$imgData[1]} $y cm /{$imgData[0]} Do Q";
         }
@@ -58,6 +57,6 @@ class Image
             $w=PageMetrics::getPt($w);
             $h=$h===false?$w*$imgH/$imgW:PageMetrics::getPt($h);
         }
-        $this->data[]=[$nameId, $x, $y, $w, $h];
+        $this->mtx->pushData($this, [$nameId, $x, $y, $w, $h]);
     }
 }
