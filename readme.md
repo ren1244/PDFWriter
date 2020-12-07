@@ -116,18 +116,20 @@ PS. 以上兩種安裝方式，outname 可以省略，此時 outname 會依據�
 2. 透過 addText 寫入文字
 
 範例
+
     //設定文字框的位置跟大小
     $pdf->text->setRect(左上角x, 左上角y, 寬度, 高度);
 
     //寫入文字，其中起始y也可以設定為 'top' 字串，這會自動貼齊 rect 最上方
     $pdf->text->addText(文字UTF-8字串, 起始x, 起始y);
 
-addText 有可選的第四個參數，這是一個關聯陣列，可以設定「行高」跟「英數字是否強迫換行」
+addText 有可選的第四個參數，這是一個關聯陣列，可以設定「行高」、「英數字是否強迫換行」、「位置調整」
 例如下列範例設定行高為1.5倍，且遇到英數字強迫換行
 
     $pdf->text->addText(文字UTF-8字串, 起始x, 起始y, [
         'lineHeight' => 1.5,
-        'wordBreak' => true
+        'wordBreak' => true,
+        'adjustPosition' => 5 //微調置中(對應數字鍵)
     ]);
 
 PS. 每頁的文字框是獨立的，不跨頁使用。

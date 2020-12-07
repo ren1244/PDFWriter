@@ -42,6 +42,7 @@ class Text
         if(isset($opt['breakWord'])) {
             $this->breakWord=$opt['breakWord'];
         }
+        $adjustPos=$opt['adjustPosition']??false;
         $ftCtrl=$this->ftCtrl;
         $hInfo=$ftCtrl->getHeightInfo();
         $xMin=$this->rect[0];
@@ -50,6 +51,8 @@ class Text
         $yMax=$this->rect[3]+$yMin;
         $x=$x===false?$this->posX:PageMetrics::getPt($x)+$xMin;
         $y=$y===false?$this->posY:($y==='top'?$yMax-$hInfo['ascent']:$yMax-PageMetrics::getPt($y));
+        $boxMinX=$boxMaxX=$x;
+        $boxMinY=$boxMaxY=$y;
         $text=mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
         $n=strlen($text);
         $ftSizeTable=$ftCtrl->getSizeTable(); //從字型名稱映射到字型大小
@@ -93,6 +96,15 @@ class Text
                     $pos+=$brkLen;
                     $this->posX=$brkX;
                     $this->posY=$y;
+                    if($boxMinX>$sx) {
+                        $boxMinX=$sx;
+                    }
+                    if($boxMaxX<$brkX) {
+                        $boxMaxX=$brkX;
+                    }
+                    if($boxMinY>$y) {
+                        $boxMinY=$y;
+                    }
                     if(($sy=($y-=$lineHeight))+$hInfo['descent']<$yMin) {
                         $outOfRangeFlag=true;
                         break;
@@ -114,6 +126,15 @@ class Text
                     $pos+=$len+($c===10||$c===32||$c===9?2:0);
                     $this->posX=$x;
                     $this->posY=$y;
+                    if($boxMinX>$sx) {
+                        $boxMinX=$sx;
+                    }
+                    if($boxMaxX<$x) {
+                        $boxMaxX=$x;
+                    }
+                    if($boxMinY>$y) {
+                        $boxMinY=$y;
+                    }
                     if(($sy=($y-=$lineHeight))+$hInfo['descent']<$yMin) {
                         $outOfRangeFlag=true;
                         break;
@@ -135,6 +156,15 @@ class Text
                 $pos+=$len;
                 $this->posX=$x;
                 $this->posY=$y;
+                if($boxMinX>$sx) {
+                    $boxMinX=$sx;
+                }
+                if($boxMaxX<$x) {
+                    $boxMaxX=$x;
+                }
+                if($boxMinY>$y) {
+                    $boxMinY=$y;
+                }
                 $x+=$dx;
                 $len=$c>0xffff?4:($c!==10?2:0);
                 $brkLen=$isWordChar?0:$len;
@@ -162,8 +192,32 @@ class Text
             ];
             $this->posX=$x;
             $this->posY=$y;
+            if($boxMinX>$sx) {
+                $boxMinX=$sx;
+            }
+            if($boxMaxX<$x) {
+                $boxMaxX=$x;
+            }
+            if($boxMinY>$y) {
+                $boxMinY=$y;
+            }
+        }
+        if($adjustPos) {
+            $dy=$adjustPos>6?$yMax-$hInfo['ascent']-$boxMaxY:(
+                $adjustPos>3?($yMax+$yMin-$boxMaxY-$boxMinY-$hInfo['ascent']-$hInfo['descent'])/2:
+                $yMin-$hInfo['descent']-$boxMinY
+            );
+            $adjustPos=$adjustPos%3;
+            $dx=$adjustPos===0?$xMax-$boxMaxX:(
+                $adjustPos===1?$xMin-$boxMinX:
+                ($xMax+$xMin-$boxMaxX-$boxMinX)/2
+            );
+        } else {
+            $dx=$dy=0;
         }
         foreach($dataToPush as $data) {
+            $data['x']+=$dx;
+            $data['y']+=$dy;
             $this->mtx->pushData($this, $data);
         }
     }
