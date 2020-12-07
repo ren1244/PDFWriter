@@ -14,6 +14,7 @@ class Text
     private $rect=[0, 0, 65535, 65535];
     private $mtx;
     private $lineHeightScale=1;
+    private $breakWord=false;
 
     public function __construct(FontController $ftCtrl, PageMetrics $mtx)
     {
@@ -38,6 +39,9 @@ class Text
         if(isset($opt['lineHeight'])) {
             $this->lineHeightScale=$opt['lineHeight'];
         }
+        if(isset($opt['breakWord'])) {
+            $this->breakWord=$opt['breakWord'];
+        }
         $ftCtrl=$this->ftCtrl;
         $hInfo=$ftCtrl->getHeightInfo();
         $xMin=$this->rect[0];
@@ -50,12 +54,16 @@ class Text
         $n=strlen($text);
         $ftSizeTable=$ftCtrl->getSizeTable(); //從字型名稱映射到字型大小
         $lineHeight=max(array_values($ftSizeTable))*$this->lineHeightScale;
+        $breakWord=$this->breakWord;
+        $dataToPush=[]; //暫存要推送的資料
         //每次 push 注意以下要更新
         $sx=$x; //初始位置
         $sy=$y;
+        $brkX=$x; //斷點位置
         $pos=0; //字串切片位置
-        $len=0;
+        $brkLen=$len=0;
         $curPsName=false;
+        $isWordCharLast=false;
 
         for($i=0;$i<$n;$i+=2) {
             $c=(ord($text[$i])<<8|ord($text[$i+1]));
@@ -71,53 +79,93 @@ class Text
             }
             $ftChangeFlag=$curPsName!==$psn?true:false;
             $outOfRangeFlag=$x+$dx>$xMax||$c===10?true:false;
-            if($ftChangeFlag || $outOfRangeFlag) {
-                if($sy+$hInfo['descent']<$yMin) {
-                    $outOfRangeFlag=true;
-                    break;
-                }
-                $this->mtx->pushData($this, [
-                    'psName'=>$curPsName,
-	                'size'=>$ftSizeTable[$curPsName],
-	                'x'=>$sx,
-	                'y'=>$sy,
-	                'str'=>substr($text, $pos, $len)
-                ]);
-                $this->posX=$x;
-                $this->posY=$y;
-                $pos+=$len+($c===10?2:0);
-                $len=$c>0xffff?4:($c!==10?2:0);
-                $curPsName=$psn;
-                if($outOfRangeFlag) {
-                    $sx=$xMin;
-                    $x=$xMin+($c!==10?$dx:0);
-                    $y-=$lineHeight;
-                    $sy=$y;
-                    if($sy+$hInfo['descent']<$yMin) {
+            $isWordChar=(48<=$c && $c<=57)||(65<=$c && $c<=90)||(97<=$c && $c<=122)?true:false;
+            if($outOfRangeFlag) { //超出範圍
+                if($isWordChar && $isWordCharLast && $brkX>$xMin && !$breakWord) { //剛好在英數中間且不是最開頭
+                    //從 sx -> brkX, 並有剩下的文字
+                    $dataToPush[]=[
+                        'psName'=>$curPsName,
+                        'size'=>$ftSizeTable[$curPsName],
+                        'x'=>$sx,
+                        'y'=>$sy,
+                        'str'=>substr($text, $pos, $brkLen)
+                    ];
+                    $pos+=$brkLen;
+                    $this->posX=$brkX;
+                    $this->posY=$y;
+                    if(($sy=($y-=$lineHeight))+$hInfo['descent']<$yMin) {
                         $outOfRangeFlag=true;
                         break;
                     }
-                } else {
-                    $sx=$x;
-                    $x+=$dx;
+                    $x=$xMin+($x+$dx-$brkX);
+                    $len=$len-$brkLen+($c>0xffff?4:2);
+                    $brkLen=0;
+                    $curPsName=$psn;
+                    $brkX=$sx=$xMin;
+                    $isWordCharLast=true;
+                } else { //不是在英數之間
+                    $dataToPush[]=[
+                        'psName'=>$curPsName,
+                        'size'=>$ftSizeTable[$curPsName],
+                        'x'=>$sx,
+                        'y'=>$sy,
+                        'str'=>substr($text, $pos, $len)
+                    ];
+                    $pos+=$len+($c===10||$c===32||$c===9?2:0);
+                    $this->posX=$x;
+                    $this->posY=$y;
+                    if(($sy=($y-=$lineHeight))+$hInfo['descent']<$yMin) {
+                        $outOfRangeFlag=true;
+                        break;
+                    }
+                    $x=$xMin+($c!==10&&$c!==32&&$c!==9?$dx:0);
+                    $brkLen=$len=$c>0xffff?4:($c!==10&&$c!==32&&$c!==9?2:0);
+                    $curPsName=$psn;
+                    $brkX=$sx=$xMin;
+                    $isWordCharLast=false;
                 }
+            } elseif($ftChangeFlag) { //字型改變(還沒超出範圍)
+                $dataToPush[]=[
+                    'psName'=>$curPsName,
+                    'size'=>$ftSizeTable[$curPsName],
+                    'x'=>$sx,
+                    'y'=>$sy,
+                    'str'=>substr($text, $pos, $len)
+                ];
+                $pos+=$len;
+                $this->posX=$x;
+                $this->posY=$y;
+                $x+=$dx;
+                $len=$c>0xffff?4:($c!==10?2:0);
+                $brkLen=$isWordChar?0:$len;
+                $curPsName=$psn;
+                $sx=$x-$dx;
+                $brkX=$isWordChar?$sx:$x;
+                $isWordCharLast=$isWordChar;
             } else {
                 $len+=$c>0xffff?4:2;
                 $x+=$dx;
+                if(!$isWordChar) {
+                    $brkX=$x;
+                    $brkLen=$len;
+                }
+                $isWordCharLast=$isWordChar;
             }
         }
         if($len>0 && !$outOfRangeFlag) {
-            $this->mtx->pushData($this, [
+            $dataToPush[]=[
                 'psName'=>$curPsName,
                 'size'=>$ftSizeTable[$curPsName],
                 'x'=>$sx,
                 'y'=>$sy,
                 'str'=>substr($text, $pos, $len)
-            ]);
+            ];
             $this->posX=$x;
             $this->posY=$y;
         }
-        
+        foreach($dataToPush as $data) {
+            $this->mtx->pushData($this, $data);
+        }
     }
 
     /**
