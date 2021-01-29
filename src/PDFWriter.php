@@ -132,7 +132,11 @@ class PDFWriter
                             array_column(array_slice($queue, $dataBeginIdx, $k-$dataBeginIdx), 1)
                         );
                         if($csId!==false) {
-                            $tmpIds[]=$csId;
+                            if(gettype($csId)==='array') {
+                                $tmpIds=array_merge($tmpIds, $csId);
+                            } else {
+                                $tmpIds[]=$csId;
+                            }
                         }
                         $curModule=$queue[$k][0];
                         $dataBeginIdx=$k;
@@ -143,7 +147,11 @@ class PDFWriter
                     array_column(array_slice($queue, $dataBeginIdx, $nData-$dataBeginIdx), 1)
                 );
                 if($csId!==false) {
-                    $tmpIds[]=$csId;
+                    if(gettype($csId)==='array') {
+                        $tmpIds=array_merge($tmpIds, $csId);
+                    } else {
+                        $tmpIds[]=$csId;
+                    }
                 }
             }
             if(($tmpIds=implode(' 0 R ', $tmpIds))!=='') {
