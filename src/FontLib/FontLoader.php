@@ -84,7 +84,7 @@ class FontLoader
                 'italicAngle'=>$this->mtx['italicAngle'],
                 'ascent'=>$this->mtx['ascender']*$scale,
                 'descent'=>$this->mtx['descender']*$scale,
-                'capHeight'=>$this->mtx['capHeight']*$scale,
+                'capHeight'=>($this->mtx['capHeight']??$this->mtx['ascender'])*$scale,
             ],
             'loca'=>$this->loca,
             'tbPos'=>$newTbPos,

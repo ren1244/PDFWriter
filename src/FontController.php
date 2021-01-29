@@ -197,9 +197,13 @@ class FontController
      */
     public function subset()
     {
-        foreach($this->fonts as $ft){
-            $ft->subset();
+        foreach($this->fonts as $idx => $ft){
+            $result=$ft->subset();
+            if($result===false) {
+                $this->fonts[$idx]=false;
+            }
         }
+        $this->fonts=array_filter($this->fonts);
     }
 
     /**

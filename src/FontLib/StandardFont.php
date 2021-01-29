@@ -99,5 +99,6 @@ class StandardFont
     public function subset()
     {
         //standard font 用不到
+        return !empty($this->usedChar);
     }
 }

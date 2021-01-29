@@ -92,6 +92,9 @@ class OpenType implements Font
         $data=file_get_contents($data);
         $tbPos=$this->tbPos;
         $usedUnicode=array_keys($this->usedUnicode);
+        if(empty($usedUnicode)) {
+            return false;
+        }
         sort($usedUnicode, SORT_NUMERIC);
         $oldUTG=$this->utg;
         $newUTG=[];
@@ -188,6 +191,7 @@ class OpenType implements Font
             implode('', $optData).
             CFFLib::packIndex($cStrArr);
         $this->subsetSize=strlen($this->subsetFont);
+        return true;
     }
 
     //========以下為 subset 後會被呼叫========

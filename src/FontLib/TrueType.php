@@ -92,6 +92,9 @@ class TrueType implements Font
         $data=file_get_contents($data);
         $glyfOffset=$this->tbPos['glyf']['pos'];
         $usedUnicode=array_keys($this->usedUnicode);
+        if(empty($usedUnicode)) {
+            return false;
+        }
         sort($usedUnicode, SORT_NUMERIC);
         //[Head, Hhea, Maxp, post, name, glyf]
         $gidMap=[0=>0]; //old gid => new gid
@@ -220,6 +223,7 @@ class TrueType implements Font
         $this->utg=$utg;
         $this->subsetFont=implode('', $s);
         $this->subsetSize=strlen($this->subsetFont);
+        return true;
     }
 
     //========以下為 subset 後會被呼叫========

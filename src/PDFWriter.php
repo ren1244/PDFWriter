@@ -146,8 +146,10 @@ class PDFWriter
                     $tmpIds[]=$csId;
                 }
             }
-            $tmpIds=implode(' 0 R ', $tmpIds);
-            $tmpIds="\n/Contents [$tmpIds 0 R]";
+            if(($tmpIds=implode(' 0 R ', $tmpIds))!=='') {
+                $tmpIds.=' 0 R';
+            }
+            $tmpIds="\n/Contents [$tmpIds]";
             $pageWidth=$page['metrics']->width;
             $pageHeight=$page['metrics']->height;
             $pdf->writeDict("/Type /Page\n/Parent $this->pageTreeId 0 R\n/Resources $this->resourceId 0 R$tmpIds\n/MediaBox [0 0 $pageWidth $pageHeight]", $pageIds[$i]);

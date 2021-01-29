@@ -142,7 +142,7 @@ PS. 每頁的文字框是獨立的，不跨頁使用。
 
 例如想畫一條從 (10, 10) 到 (20, 30) 的直線
 
-    $pdf->PostscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::getUint(1));
+    $pdf->PostscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::getUnit(1));
 
 PS. 由於 addPath 的單位是預設單位，所以線寬希望是 1 pt 時，可以用 PageMetrics::getUint(1) 把 pt 轉換為 unit 單位。
 
@@ -160,7 +160,7 @@ PS. 由於 addPath 的單位是預設單位，所以線寬希望是 1 pt 時，�
 
 #### 單位
 
-上面的 text 跟 PostscriptGragh 單位都會是「目前單位」，預設是 mm
+上面的 text 跟 postscriptGragh 單位都會是「目前單位」，預設是 mm
 在「目前單位」下，臨時要使用 pt 可以用 PageMetrics::Pt 函式轉換
 
 如果想變更單位
