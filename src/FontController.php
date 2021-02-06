@@ -21,6 +21,7 @@ class FontController
     private $getWidthType=false;
     private $ftSize=12;
     private $subsetId=0;
+    private $fontHeightInfo;
 
     private static $standardFontName=[
         'Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic',
@@ -79,11 +80,30 @@ class FontController
         if(is_array($font)) {
             $this->getWidthType=2;
             $this->curFont=$font;
+            $this->fontHeightInfo=[];
+            foreach($font as $ft=>$sz) {
+                $info=$this->fonts[$ft]->getMtx();
+                $this->fontHeightInfo[$ft]=[
+                    'size' => $sz,
+                    'ascent' => $info['ascent']*$sz/1000,
+                    'descent' => $info['descent']*$sz/1000,
+                    'height' => ($info['ascent']-$info['descent'])*$sz/1000,
+                ];
+            }
         } else {
             $this->getWidthType=1;
             $this->curFont=$font;
             $this->ftSize=$size;
             $this->curName=$this->getFontName($font);
+            $info=$this->fonts[$this->curFont]->getMtx();
+            $this->fontHeightInfo=[
+                $font => [
+                    'size' => $size,
+                    'ascent' => $info['ascent']*$size/1000,
+                    'descent' => $info['descent']*$size/1000,
+                    'height' => ($info['ascent']-$info['descent'])*$size/1000,
+                ]
+            ];
         }
     }
 
@@ -106,7 +126,7 @@ class FontController
      * 注意：這個函式同時也註冊有哪些文字會被使用，作為 subset 的參考
      * 
      * @param int $unicode unicode code point
-     * @param mixed &$ftName 如果找到字，會被設定為PDF字型名稱，否則這個值無意義
+     * @param mixed &$ftName 如果找到字，會被設定為字型名稱，否則這個值無意義
      * @return int|false 字的寬度，如果找不到回傳 false
      */
     public function getWidth($unicode, &$ftName)
@@ -173,6 +193,16 @@ class FontController
         } else {
             throw new \Exception('font is undefined');
         }
+    }
+
+    /**
+     * 取得字型高度資訊
+     * 
+     * @return array {字形名稱:{size(pt),ascent(pt),descent(pt)}, ...}
+     */
+    public function getFontHeightInfo()
+    {
+        return $this->fontHeightInfo;
     }
 
     /**

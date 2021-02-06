@@ -85,7 +85,7 @@ class PDFWriter
         }
         $this->pages[]=$curPage;
         $this->currentPageIdx=array_key_last($this->pages);
-        $this->pages[$this->currentPageIdx]['text']->setRect([0,0,$width,$height],$width,$height);
+        $this->pages[$this->currentPageIdx]['text']->setRect(0, 0, $width, $height);
     }
 
     /**
