@@ -41,16 +41,13 @@ class Text
      * 加入文字
      * 
      * @param string $text 文字(utf-8)
-     * @param array $opt 選項(以下星號代表未完成)
-     *                  lineHeight: 行高
-     *                  breakWord: 英數強制換行
-     *                  color: 顏色
-     *                  * bgColor: 填充背景色
-     *                  textAlign: 文字對齊(left、center、right)
-     *                  cellAlign: 格子內對齊位置
-     *                  * borderWidth: 格子的邊框寬度
-     *                  * borderColor: 格子的邊框顏色
-     *                  underline: 底線寬(pt)
+     * @param array $opt 選項
+     *                  lineHeight(number): 行高
+     *                  breakWord(bool): 英數強制換行
+     *                  color(string): 顏色，RRGGBB，例如 FFCC00
+     *                  textAlign(string): 文字對齊(left、center、right)
+     *                  cellAlign(integer): 格子內對齊位置（數字鍵的位置）
+     *                  underline(number): 底線寬(pt)
      * @return void
      */
     public function addText($text, $opt=[])
@@ -123,7 +120,7 @@ class Text
                 $tmpY=$y-$helfLeading-$info['ascent'];
                 if(isset($opt['underline']) && floatval($opt['underline'])>0) {
                     $tmpY2=$tmpY+$info['descent'];
-                    $underline='q '.($color?$color.' RG ':'')."${opt['underline']} w $x $tmpY2 m ".($x+$widthArr[$idx])." $tmpY2 l S Q";
+                    $underline=' '.($color?$color.' RG ':'')."${opt['underline']} w $x $tmpY2 m ".($x+$widthArr[$idx])." $tmpY2 l S ";
                 } else {
                     $underline='';
                 }
@@ -276,7 +273,7 @@ class Text
         foreach($datas as $data) {
             $str=$this->ftCtrl->getTextContent($data['psName'], $data['str']);
             $ftName=$this->ftCtrl->getFontName($data['psName']);
-            $s[]="BT /$ftName ${data['size']} Tf ${data['color']}${data['x']} ${data['y']} Td <$str> Tj ET".$data['underline'];
+            $s[]="q BT /$ftName ${data['size']} Tf ${data['color']}${data['x']} ${data['y']} Td <$str> Tj ET".$data['underline'].' Q';
         }
         return $writer->writeStream(implode(' ', $s), StreamWriter::COMPRESS);
     }

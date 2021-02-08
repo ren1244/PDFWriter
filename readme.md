@@ -7,7 +7,7 @@
 ## 專案的方向
 
 * 支援全範圍 unicode（現在很多 PHP PDF 函式庫只支援到[基本多文種平面](https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)）
-* 至少支援 TTF 與 OTF 字型，或是更多種。（目前 TTF 跟 OTF 都可以使用）
+* 至少支援 TTF 與 OTF 字型，或是更多種。（目前 TTF 跟 OTF 都可以使用，不過 otf 檔案會較大）
 * 當字型缺字時，自動切換為後補字型。這個可以達到英數與中文字採用不同字型的效果。
 * 提供擴充的介面，讓其他開發者依需求擴充自己需要的模組。
 
@@ -20,7 +20,7 @@
 
 關於如何建立 Cntent Module 可以參考：[如何加入新的模組](doc/module.md)。
 
-這邊只介紹自帶的基本功能：字型、文字、線條（內嵌點陣圖之後會加上去）
+這邊只介紹自帶的基本功能：字型、文字、線條、內嵌點陣圖
 如果只是產生報表應該還堪用
 
 PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太過深入高級功能的開發，而是透過提供介面給予增加功能的彈性。所以只提供最基礎的功能。
@@ -121,16 +121,18 @@ PS. 以上兩種安裝方式，outname 可以省略，此時 outname 會依據�
     $pdf->text->setRect(左上角x, 左上角y, 寬度, 高度);
 
     //寫入文字，其中起始y也可以設定為 'top' 字串，這會自動貼齊 rect 最上方
-    $pdf->text->addText(文字UTF-8字串, 起始x, 起始y);
+    $pdf->text->addText(文字UTF-8字串, 選項);
 
-addText 有可選的第四個參數，這是一個關聯陣列，可以設定「行高」、「英數字是否強迫換行」、「位置調整」
-例如下列範例設定行高為1.5倍，且遇到英數字強迫換行
+其中「選項」是一個選擇性的參數，為一個關聯陣列，可以有以下選擇
 
-    $pdf->text->addText(文字UTF-8字串, 起始x, 起始y, [
-        'lineHeight' => 1.5,
-        'wordBreak' => true,
-        'adjustPosition' => 5 //微調置中(對應數字鍵)
-    ]);
+|key| value type | value meaning |
+|---|---|---|
+|lineHeight |number| 行高，相對於該行字型大小，預設值為1.2 |
+|breakWord|bool| 英數是否強制換行|
+|color|string| 文字顏色，RRGGBB，例如 FFCC00|
+|textAlign|string| 多行文字對齊，可能的值有："left", "center", "right"|
+|cellAlign|integer| 文字要對齊文字框的何處，允許的數值是 1~9，對應數字鍵的位置|
+|underline|number| 底線寬，單位是 pt，如果為 0 則不添加底線|
 
 PS. 每頁的文字框是獨立的，不跨頁使用。
 
