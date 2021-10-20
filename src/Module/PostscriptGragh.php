@@ -4,7 +4,7 @@ namespace ren1244\PDFWriter\Module;
 use ren1244\PDFWriter\StreamWriter;
 use ren1244\PDFWriter\PageMetrics;
 
-class PostscriptGragh
+class PostscriptGragh implements ModuleInterface
 {
     private $mtx;
 
@@ -22,7 +22,7 @@ class PostscriptGragh
         ]);
     }
 
-    public function write($writer, $datas)
+    public function write(StreamWriter $writer, array $datas)
     {
         $h=$this->mtx->height;
         foreach($datas as $idx=>$data) {

@@ -5,7 +5,7 @@ use ren1244\PDFWriter\StreamWriter;
 use ren1244\PDFWriter\PageMetrics;
 use ren1244\PDFWriter\Resource\ImageResource;
 
-class Image
+class Image implements ModuleInterface
 {
     private $mtx;
     private $imgRes;
@@ -28,7 +28,7 @@ class Image
         $this->_addImage($nameId, $imgW, $imgH, $x, $y, $w, $h);
     }
 
-    public function write($writer, $data)
+    public function write(StreamWriter $writer, array $data)
     {
         if(count($data)===0) {
             return false;

@@ -1,9 +1,10 @@
 <?php
 namespace ren1244\PDFWriter\Module;
 
+use ren1244\PDFWriter\StreamWriter;
 use ren1244\PDFWriter\PageMetrics;
 
-class TextBox
+class TextBox implements ModuleInterface
 {
     public function __construct(Text $text, PostscriptGragh $gragh)
     {
@@ -19,10 +20,10 @@ class TextBox
         $this->text->addText($text, 0, 'top', ['lineHeight'=>$lineHeight]);
         $x2=$x+$w;
         $y2=$y+$h;
-        $this->gragh->addPath("$x $y m $x2 $y l $x2 $y2 l $x $y2 l $x $y l S", PageMetrics::Pt(0.5));
+        $this->gragh->addPath("$x $y m $x2 $y l $x2 $y2 l $x $y2 l $x $y l S", PageMetrics::getPt(0.5));
     }
 
-    public function write($writer)
+    public function write(StreamWriter $writer, array $data)
     {
         return false;
     }

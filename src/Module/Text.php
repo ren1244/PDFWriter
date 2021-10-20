@@ -5,7 +5,7 @@ use ren1244\PDFWriter\StreamWriter;
 use ren1244\PDFWriter\Resource\FontController;
 use ren1244\PDFWriter\PageMetrics;
 
-class Text
+class Text implements ModuleInterface
 {
     private $ftCtrl;
     private $mtx;
@@ -267,7 +267,7 @@ class Text
     /**
      * 這個函式不由使用者呼叫
      */
-    public function write($writer, $datas)
+    public function write(StreamWriter $writer, array $datas)
     {
         $s=[];
         foreach($datas as $data) {

@@ -261,7 +261,7 @@ class FontController implements ResourceInterface
             $ids[]="/$pdfFtName $id 0 R";
         }
         if(count($ids)===0) {
-            return '';
+            return false;
         }
         $fts=implode(' ', $ids);
         return ['Font', $fts];

@@ -9,13 +9,14 @@ class Config
         'text' => Module\Text::class,
         'postscriptGragh'=> Module\PostscriptGragh::class,
         'textBox'=> Module\TextBox::class,
-        'font' => Resource\FontController::class
+        'template' => Module\Template::class,
     ];
 
     //載入的 resource module
     const Resources=[
         'font' => Resource\FontController::class,
-        'imageResource' => Resource\ImageResource::class
+        'imageResource' => Resource\ImageResource::class,
+        'formXObject' => Resource\FormXObject::class,
     ];
 
     //頁面尺寸名稱設定，注意這邊都是 pt

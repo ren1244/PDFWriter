@@ -173,8 +173,11 @@ class PDFWriter
         $resArr=[];
         foreach($this->resourceEntities as $res) {
             $tmp=$res->write($pdf);
+            if($tmp===false) {
+                continue;
+            }
             if(isset($resArr[$tmp[0]])) {
-                $resArr[$tmp[0]].=' '.$tmp[1];
+                $resArr[$tmp[0]][]=$tmp[1];
             } else{
                 $resArr[$tmp[0]]=[$tmp[1]];
             }
