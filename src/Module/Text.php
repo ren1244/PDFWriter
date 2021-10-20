@@ -14,6 +14,7 @@ class Text implements ModuleInterface
     {
         $this->ftCtrl=$ftCtrl;
         $this->mtx=$mtx;
+        $this->setRect(0, 0, $mtx->width, $mtx->height);
     }
 
     private $x; //左上角 x 座標

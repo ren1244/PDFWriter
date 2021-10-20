@@ -47,6 +47,7 @@ class PDFWriter
      */
     public function __get($name)
     {
+        //Resource
         if(isset($this->resourceModules[$name])) {
             if(!isset($this->resourceEntities[$name])) {
                 $this->resourceEntities[$name] = new $this->resourceModules[$name];
@@ -56,8 +57,14 @@ class PDFWriter
         if(empty($this->pages)) {
             throw new \Exception('No page added');
         }
+        //Content
         if(isset($this->contentModules[$name])) {
-            return $this->pages[$this->currentPageIdx][$name];
+            $curPage = &$this->pages[$this->currentPageIdx];
+            $className = $this->contentModules[$name];
+            if(!isset($curPage[$name])) {
+                $this->createContentModuleEntity($className, $curPage);
+            }
+            return $curPage[$name];
         }
         throw new \Exception('Content module not found');
     }
@@ -82,14 +89,8 @@ class PDFWriter
         }
         $mtx=new PageMetrics($width, $height);
         $curPage=['metrics'=>$mtx];
-        foreach($this->contentModules as $key=>$className) {
-            if(!isset($curPage[$key])) {
-                $this->createContentModuleEntity($className, $curPage);
-            }
-        }
         $this->pages[]=$curPage;
         $this->currentPageIdx=array_key_last($this->pages);
-        $this->pages[$this->currentPageIdx]['text']->setRect(0, 0, $width, $height);
     }
 
     /**
