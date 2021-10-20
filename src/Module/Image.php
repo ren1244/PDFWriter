@@ -3,7 +3,7 @@ namespace ren1244\PDFWriter\Module;
 
 use ren1244\PDFWriter\StreamWriter;
 use ren1244\PDFWriter\PageMetrics;
-use ren1244\PDFWriter\ImageResource;
+use ren1244\PDFWriter\Resource\ImageResource;
 
 class Image
 {

@@ -1,10 +1,13 @@
 <?php
-namespace ren1244\PDFWriter;
+namespace ren1244\PDFWriter\Resource;
+
+use ren1244\PDFWriter\Config;
+use ren1244\PDFWriter\StreamWriter;
 
 /**
  * 字型管理器
  */
-class FontController
+class FontController implements ResourceInterface
 {
     /**
      * 名詞定義：
@@ -225,7 +228,7 @@ class FontController
      * 
      * @return void
      */
-    public function subset()
+    public function preprocess()
     {
         foreach($this->fonts as $idx => $ft){
             $result=$ft->subset();
@@ -242,7 +245,7 @@ class FontController
      * @param object $writer StreamWriter 物件
      * @return string 資源的 /Font 項目
      */
-    public function write($writer)
+    public function write(StreamWriter $writer)
     {
         $ids=[];
         foreach($this->fonts as $ftName => $fontObj) {
@@ -261,7 +264,7 @@ class FontController
             return '';
         }
         $fts=implode(' ', $ids);
-        return "/Font << $fts >>";
+        return ['Font', $fts];
     }
 
     /**

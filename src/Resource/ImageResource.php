@@ -1,5 +1,7 @@
 <?php
-namespace ren1244\PDFWriter;
+namespace ren1244\PDFWriter\Resource;
+
+use ren1244\PDFWriter\StreamWriter;
 
 /**
  * 點陣圖的資源管理器
@@ -7,7 +9,7 @@ namespace ren1244\PDFWriter;
  * 其中 png 只剩下包含 tRns 的 tpye 0 跟 type 2 未處理
  * （這些格式應該不常見，之後再補完）
  */
-class ImageResource
+class ImageResource implements ResourceInterface
 {
     private $id=0;
     private $images=[];
@@ -49,7 +51,7 @@ class ImageResource
      * @param object $writer StreamWriter 物件
      * @return string 資源的 /XObject 項目
      */
-    public function write($writer)
+    public function write(StreamWriter $writer)
     {
         $arr=[];
         foreach($this->images as $info) {
@@ -72,7 +74,15 @@ class ImageResource
                 throw new \Exception('unsupport image format');
             }
         }
-        return '/XObject << '.implode("\n", $arr).' >>';
+        return ['XObject', implode("\n", $arr)];
+    }
+
+    /**
+     * 使用者操作結束，要開始輸出 pdf 之前的預處理
+     */
+    public function preprocess()
+    {
+
     }
 
     /**

@@ -4,20 +4,21 @@ namespace ren1244\PDFWriter;
 class PDFWriter
 {
     private $writer;
-    private $ftCtrl;
-    private $imgRes;
     
     private $pages=[]; //{width:num, height:num, contents:[int(index of $this->contents),...]}
-    private $contents=[]; //stream contents
+    private $resourceEntities=[]; //resource 物件實體, key=>entity
 
     private $catalogId;
     private $pageTreeId;
-    private $resourceId;
+    private $resourceId; //resource Dict's id
 
     private $currentPageIdx;
 
     private $contentModules;
     private $moduleClassToKey;
+
+    private $resourceModules;
+    private $resourceClassToKey;
 
     /**
      * 建立 PDFWriter 物件
@@ -28,14 +29,14 @@ class PDFWriter
     public function __construct($withModules=[])
     {
         $this->writer=new StreamWriter;
-        $this->ftCtrl=new FontController;
-        $this->imgRes=new ImageResource;
         $this->catalogId=$this->writer->preserveId();
         $this->pageTreeId=$this->writer->preserveId();
         $this->resourceId=$this->writer->preserveId();
         $this->contentModules=Config::Modules+$withModules;
         $this->moduleClassToKey=array_flip($this->contentModules);
         $this->moduleClassToKey[PageMetrics::class]='metrics';
+        $this->resourceModules=Config::Resources;
+        $this->resourceClassToKey=array_flip($this->resourceModules);
     }
 
     /**
@@ -46,8 +47,11 @@ class PDFWriter
      */
     public function __get($name)
     {
-        if($name==='font') {
-            return $this->ftCtrl;
+        if(isset($this->resourceModules[$name])) {
+            if(!isset($this->resourceEntities[$name])) {
+                $this->resourceEntities[$name] = new $this->resourceModules[$name];
+            }
+            return $this->resourceEntities[$name];
         }
         if(empty($this->pages)) {
             throw new \Exception('No page added');
@@ -99,7 +103,10 @@ class PDFWriter
         if(is_null(array_key_last($this->pages))) {
             $this->addPage('A4');
         }
-        $this->ftCtrl->subset();
+        //資源預處理
+        foreach($this->resourceEntities as $res) {
+            $resArr[]=$res->preprocess();
+        }
         $pdf=$this->writer;
         $pdf->setOutputTarget($fp);
         if($fp===false) {
@@ -107,7 +114,7 @@ class PDFWriter
         }
         //hrader
         $pdf->writeLine('%PDF-1.4');
-        $pdf->writeLine('%'.hex2bin('B6EABAA1'));
+        $pdf->writeLine('%§§');
         //catalog
         $pdf->writeDict("/Type /Catalog\n/Pages $this->pageTreeId 0 R", $this->catalogId);
         //root page tree
@@ -161,19 +168,20 @@ class PDFWriter
             $pageWidth=$page['metrics']->width;
             $pageHeight=$page['metrics']->height;
             $pdf->writeDict("/Type /Page\n/Parent $this->pageTreeId 0 R\n/Resources $this->resourceId 0 R$tmpIds\n/MediaBox [0 0 $pageWidth $pageHeight]", $pageIds[$i]);
-            
-        }
-        //content streams
-        foreach($this->contents as $idx=>$contentStreamData) {
-            $id=$contentIds[$idx];
-            $pdf->writeStream($contentStreamData, false/* StreamWriter::COMPRESS*/, [], $id);
         }
         //resources
         $resArr=[];
-        foreach([$this->ftCtrl, $this->imgRes] as $res) {
-            $resArr[]=$res->write($pdf);
+        foreach($this->resourceEntities as $res) {
+            $tmp=$res->write($pdf);
+            if(isset($resArr[$tmp[0]])) {
+                $resArr[$tmp[0]].=' '.$tmp[1];
+            } else{
+                $resArr[$tmp[0]]=[$tmp[1]];
+            }
         }
-
+        foreach($resArr as $k=>$v) {
+            $resArr[$k] = '/'.$k.' << '.implode(' ', $v).' >>';
+        }
         $pdf->writeDict(implode("\n", $resArr), $this->resourceId);
         //finish
         $pdf->writeFinish($this->catalogId);
@@ -216,11 +224,9 @@ class PDFWriter
                     throw new \Exception('Module constructor has no type hint');
                 }
                 $depName=$params[$i]->getClass()->getName();
-                if($depName===FontController::class) {
-                    $argList[]=$this->ftCtrl;
-                    continue;
-                } elseif($depName===ImageResource::class) {
-                    $argList[]=$this->imgRes;
+                if(isset($this->resourceClassToKey[$depName])) {
+                    $depName=$this->resourceClassToKey[$depName];
+                    $argList[]=$this->$depName;
                     continue;
                 }
                 $depKey=$this->moduleClassToKey[$depName];

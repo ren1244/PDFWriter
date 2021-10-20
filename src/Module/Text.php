@@ -2,7 +2,7 @@
 namespace ren1244\PDFWriter\Module;
 
 use ren1244\PDFWriter\StreamWriter;
-use ren1244\PDFWriter\FontController;
+use ren1244\PDFWriter\Resource\FontController;
 use ren1244\PDFWriter\PageMetrics;
 
 class Text

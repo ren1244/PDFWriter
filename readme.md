@@ -90,7 +90,7 @@ PS. 文字、線條的功能都是由 Cntent Module 實現，現階段不會太�
 想安裝字型，先準備一個字型檔，然後使用 FontLoader 的 loadFile 方法。
 
     <?php
-    use use ren1244\PDFWriter\FontLib\FontLoader;
+    use ren1244\PDFWriter\FontLib\FontLoader;
     $loader = new FontLoader;
     //$fname 是來源字型的檔案路徑
     //$outname 是輸出的名稱，同時也是之後使用這個字型的名稱
