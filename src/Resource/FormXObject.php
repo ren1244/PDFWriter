@@ -37,7 +37,7 @@ class FormXObject implements ResourceInterface
                 'FormType'=> 1,
                 'BBox'=> '['.$content[1].']',
                 'Matrix'=> '['.$content[2].']',
-                'Resources'=> '<< /ProcSet [ /PDF ] >>'
+                'Resources'=> '<< /ProcSet [ /PDF /Text ] >>'
             ]);
             $objIdArr[]="/FXObj$idx $id 0 R";
         }

@@ -10,7 +10,7 @@ class Template implements ModuleInterface
 {
     private $page;
     private $fxObj;
-    private $nameIdMap = []; //name => id
+    static $nameIdMap = []; //name => id
 
     /**
      * 建構函式
@@ -24,18 +24,18 @@ class Template implements ModuleInterface
 
     public function registry(string $name, string $postscript, string $bbox, string $matrix = '1 0 0 1 0 0')
     {
-        if (isset($this->nameIdMap[$name])) {
+        if (isset(self::$nameIdMap[$name])) {
             throw new \Exception('此名稱已被使用');
         }
-        $this->nameIdMap[$name] = $this->fxObj->registry($postscript, $bbox, $matrix);
+        self::$nameIdMap[$name] = $this->fxObj->registry($postscript, $bbox, $matrix);
     }
 
     public function draw(string $name, $matrix=false)
     {
-        if (!isset($this->nameIdMap[$name])) {
+        if (!isset(self::$nameIdMap[$name])) {
             throw new \Exception('此名稱尚未定義');
         }
-        $objId=$this->nameIdMap[$name];
+        $objId=self::$nameIdMap[$name];
         if($matrix) {
             $this->page->pushData($this, "q $matrix cm $objId Do Q");
         } else {
