@@ -26,7 +26,7 @@ class PDFWriter
      * @param array $withModules 額外載入的模組，格式為 [模組名=>class 名稱, ...]
      * @return void
      */
-    public function __construct($withModules=[])
+    public function __construct($withModules=[], $withResources=[])
     {
         $this->writer=new StreamWriter;
         $this->catalogId=$this->writer->preserveId();
@@ -35,7 +35,7 @@ class PDFWriter
         $this->contentModules=Config::Modules+$withModules;
         $this->moduleClassToKey=array_flip($this->contentModules);
         $this->moduleClassToKey[PageMetrics::class]='metrics';
-        $this->resourceModules=Config::Resources;
+        $this->resourceModules=Config::Resources+$withResources;
         $this->resourceClassToKey=array_flip($this->resourceModules);
     }
 
