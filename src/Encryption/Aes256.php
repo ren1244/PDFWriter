@@ -63,7 +63,7 @@ class Aes256 implements EncryptionInterface
         $k = substr($h, 8, 16);
         $x = hash('sha256', $pass . $v . $pad, true) . $v . $k;
         //設定 XE
-        $h = hash('sha256', $pass . $k, true);
+        $h = hash('sha256', $pass . $k . $pad, true);
         $iv = str_repeat("\x00", 16);
         $e = openssl_encrypt($this->encryptionKey, "AES-256-CBC", $h, OPENSSL_RAW_DATA, $iv);
         $xe = substr($e, 0, -16);
