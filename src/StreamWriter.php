@@ -1,6 +1,8 @@
 <?php
 namespace ren1244\PDFWriter;
 
+use ren1244\PDFWriter\Encryption\EncryptionInterface;
+
 /**
  * 刻出 pdf 最基本工具
  * 這裡提供寫入 Dict、Stream 等函式
@@ -19,6 +21,8 @@ class StreamWriter
     private $preserveIdTable=[];
     private $posTable=[];
     private $pos=0;
+    private $encryptionObject=null;
+    private $docId;
     
     /**
      * 建立 StreamWriter 物件
@@ -30,6 +34,7 @@ class StreamWriter
     public function __construct($fp=false)
     {
         $this->ofp=$fp;
+        $this->docId = bin2hex(random_bytes(16));
     }
 
     public function __destruct()
@@ -52,6 +57,16 @@ class StreamWriter
             throw new \Exception('cannot set output target twice');
         }
         $this->ofp=$fp;
+    }
+    
+    /**
+     * 設定加密物件
+     *
+     * @param  EncryptionInterface $encryptionObject 加密物件
+     * @return void
+     */
+    public function setEncryptionObject($encryptionObject) {
+        $this->encryptionObject = $encryptionObject;
     }
 
     /**
@@ -112,6 +127,9 @@ class StreamWriter
         } else {
             $streamContent=$content;
         }
+        if($this->encryptionObject !== null) {
+            $streamContent = $this->encryptionObject->encrypt($streamContent, $id);
+        }
         if($compressFlag&StreamWriter::FLATEDECODE) {
             $entries['Filter']='/FlateDecode';
         }
@@ -132,9 +150,10 @@ class StreamWriter
      * 寫入最後的內容，像是 xref、trailer 等
      * 
      * @param int $rootId catalog dict 的 id
+     * @param int|null $encId encryption dict 的 id
      * @return void
      */
-    public function writeFinish($rootId)
+    public function writeFinish($rootId, $encId)
     {
         $xrefPos=$this->pos;
         $n=$this->idCount;
@@ -146,10 +165,23 @@ class StreamWriter
         $this->writeLine('<<');
         $this->writeLine(sprintf('/Size %d', $n+1));
         $this->writeLine(sprintf('/Root %d 0 R', $rootId));
+        $this->writeLine(sprintf('/ID [<%s> <%s>]', $this->docId, $this->docId));
+        if($encId !== null) {
+            $this->writeLine(sprintf('/Encrypt %d 0 R', $encId));
+        }
         $this->writeLine('>>');
         $this->writeLine('startxref');
         $this->writeLine($xrefPos);
         $this->writeLine('%%EOF');
+    }
+ 
+    /**
+     * 取得 pdf 的 Id
+     *
+     * @return int pdf 的 Id
+     */
+    public function getDocId() {
+        return $this->docId;
     }
 
     private function initId(&$id)

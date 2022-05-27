@@ -3,6 +3,19 @@ namespace ren1244\PDFWriter;
 
 class PDFWriter
 {
+    /**
+     * Permission Consts
+     */
+    const PERM_PRINT = 0x04; //R=2; R>=3: 根據 bit 12 是否低品質列印
+    const PERM_MODIFY = 0x08; //修改內容，但 bit 6; 9; 11 的操作另外由其設定
+    const PERM_CPOY = 0x10; //R>=2:複製內容，R>=3: 可複製，但 bit 10 有另外設定
+    const PERM_ANNOT_FORMS = 0x20; //增改註解、填寫表單，若 bit4 有設定，再允許增改表單
+    const PERM_FILL_FORMS = 0x100; // R>=3: 允許填寫表單（bit6 沒設定也可以填寫）
+    const PERM_EXTRACT = 0x200; // R>=3: 複製內容
+    const PERM_ASSEMBLE = 0x400; // R>=3: 重組 PDF（bit4 沒設定也可以重組）
+    const PERM_PRINT_HIGHRES = 0x800; // R>=3: 
+    const PERM_ALL = 0xf3c;
+
     private $writer;
     
     private $pages=[]; //{width:num, height:num, contents:[int(index of $this->contents),...]}
@@ -19,6 +32,8 @@ class PDFWriter
 
     private $resourceModules;
     private $resourceClassToKey;
+
+    private $encryptionObject = null;
 
     /**
      * 建立 PDFWriter 物件
@@ -92,6 +107,24 @@ class PDFWriter
         $this->pages[]=$curPage;
         $this->currentPageIdx=array_key_last($this->pages);
     }
+    
+    /**
+     * 設定此 PDF 為加密
+     *
+     * @param  string $className 加密的 class
+     *                           在 \ren1244\PDFWriter\Encryption\ 中有
+     *                           Rc4_128、Aes128、Aes256
+     * @param  string $userPassword 使用者密碼（只有 AES256 允許 unicode）
+     * @param  string $ownerPassword 所有者密碼（只有 AES256 允許 unicode）
+     * @param  int    $permisionFlag 權限 flag，參考 \ren1244\PDFWriter::PERM_*
+     * @return void
+     */
+    public function setEncryption($className, $userPassword, $ownerPassword, $permisionFlag)
+    {
+        $docId = hex2bin($this->writer->getDocId());
+        $this->encryptionObject = new $className($userPassword, $ownerPassword, $permisionFlag, $docId);
+        $this->writer->setEncryptionObject($this->encryptionObject);
+    }
 
     /**
      * 輸出 PDF
@@ -114,7 +147,7 @@ class PDFWriter
             header('Content-Type: application/pdf');
         }
         //hrader
-        $pdf->writeLine('%PDF-1.4');
+        $pdf->writeLine($this->encryptionObject instanceof Encryption\EncryptionInterface ? '%PDF-1.7' : '%PDF-1.4');
         $pdf->writeLine('%§§');
         //catalog
         $pdf->writeDict("/Type /Catalog\n/Pages $this->pageTreeId 0 R", $this->catalogId);
@@ -127,7 +160,6 @@ class PDFWriter
         foreach($this->pages as $i=>&$page) {
             $tmpIds=[];
             $queue=&$page['metrics']->dataQueue;
-            //var_dump($queue);
             $nData=count($queue);
             if($nData>0){
                 $dataBeginIdx=0;
@@ -187,8 +219,13 @@ class PDFWriter
             $resArr[$k] = '/'.$k.' << '.implode(' ', $v).' >>';
         }
         $pdf->writeDict(implode("\n", $resArr), $this->resourceId);
+        if($this->encryptionObject instanceof Encryption\EncryptionInterface) {
+            $encIdObj = $pdf->writeDict($this->encryptionObject->getEncryptionDict());
+        } else {
+            $encIdObj = null;
+        }
         //finish
-        $pdf->writeFinish($this->catalogId);
+        $pdf->writeFinish($this->catalogId, $encIdObj);
     }
 
     /**
