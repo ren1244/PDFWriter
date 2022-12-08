@@ -88,7 +88,7 @@ class TrueType implements Font
      */
     public function subset()
     {
-        $data=Config::FONT_DIR.'/'.$this->ftName.'.bin';
+        $data=Config::FONT_DIR.'/custom/'.$this->ftName.'.bin';
         $data=file_get_contents($data);
         $glyfOffset=$this->tbPos['glyf']['pos'];
         $usedUnicode=array_keys($this->usedUnicode);

@@ -95,11 +95,11 @@ class FontLoader
         if($outputNmae===false) {
             $outputNmae=$psname;
         }
-        file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.json', json_encode($output,  JSON_UNESCAPED_UNICODE| JSON_UNESCAPED_SLASHES| JSON_PRETTY_PRINT));        
+        file_put_contents(Config::FONT_DIR.'/custom/'.$outputNmae.'.json', json_encode($output,  JSON_UNESCAPED_UNICODE| JSON_UNESCAPED_SLASHES| JSON_PRETTY_PRINT));        
         if($this->type==='TTF') {
-            file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
+            file_put_contents(Config::FONT_DIR.'/custom/'.$outputNmae.'.bin', implode('', $newData));
         } else {
-            file_put_contents(Config::FONT_DIR.'/'.$outputNmae.'.bin', implode('', $newData));
+            file_put_contents(Config::FONT_DIR.'/custom/'.$outputNmae.'.bin', implode('', $newData));
         }
     }
 

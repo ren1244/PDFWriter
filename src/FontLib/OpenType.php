@@ -88,7 +88,7 @@ class OpenType implements Font
     public function subset()
     {
         //更新 utg
-        $data=Config::FONT_DIR.'/'.$this->ftName.'.bin';
+        $data=Config::FONT_DIR.'/custom/'.$this->ftName.'.bin';
         $data=file_get_contents($data);
         $tbPos=$this->tbPos;
         $usedUnicode=array_keys($this->usedUnicode);

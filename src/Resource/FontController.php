@@ -47,7 +47,7 @@ class FontController implements ResourceInterface
             if(in_array($ftName, self::$standardFontName)) {
                 $ft=new \ren1244\PDFWriter\FontLib\StandardFont($ftName);
             } else {
-                $jsonFile=Config::FONT_DIR.'/'.$ftName.'.json';
+                $jsonFile=Config::FONT_DIR.'/custom/'.$ftName.'.json';
                 if(!file_exists($jsonFile)) {
                     throw new \Exception("TrueType font $ftName not exsits");
                 }
