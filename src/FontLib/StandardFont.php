@@ -20,6 +20,9 @@ class StandardFont
             throw new \Exception("Standatd font $psName not exsits");
         }
         $this->info=json_decode(file_get_contents($jsonFile), true);
+        $this->info['typoAscender'] = $this->info['ascent'];
+        $this->info['typoDescender'] = $this->info['descent'];
+        $this->info['typoLineGap'] = 0;
     }
 
     /**

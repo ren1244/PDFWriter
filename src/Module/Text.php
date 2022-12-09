@@ -44,7 +44,7 @@ class Text implements ModuleInterface
      * @param string $text 文字(utf-8)
      * @param array $opt 選項
      *                  lineHeight(number): 行高
-     *                  breakWord(bool): 英數強制換行
+     *                  wordBreak(bool): 英數強制換行
      *                  color(string): 顏色，RRGGBB，例如 FFCC00
      *                  textAlign(string): 文字對齊(left、center、right)
      *                  cellAlign(integer): 格子內對齊位置（數字鍵的位置）
@@ -59,17 +59,25 @@ class Text implements ModuleInterface
         $lineHeightScale=$opt['lineHeight']??1.2;
         $hInfo=$ftCtrl->getFontHeightInfo();
         $wordBreak=$opt['wordBreak']??false;
-        $maxWidth=$maxHeight=0;
-        $lineArr=[];
-        $widthArr=[];
-        $heightArr=[];
+        $maxWidth=$maxHeight=0; //真正用到的文字範圍
+        $lineArr=[];   //每行資料，getNextLine 的回傳值
+        $widthArr=[];  //每行總寬度
+        $heightArr=[]; //每行高度
+        $baselineToTopArr=[]; //基線的位置(與目前y座標的距離)
+        $underlineToTopArr=[]; //畫底線的位置(與目前y座標的距離)
         $textArr=explode("\n", $text);
         foreach($textArr as $text) {
             $text=mb_convert_encoding($text, 'UTF-16BE', 'UTF-8');
             $len=strlen($text);
             $idx=0;
-            while(($line=$this->getNextLine($text, $len, $idx, $totalWidth, $hInfo, $lineHeight, $wordBreak))!==null) {
-                $lineHeight*=$lineHeightScale;
+            while(($line=$this->getNextLine(
+                $text, $len, $idx,
+                $totalWidth,
+                $hInfo, $lineAscender, $lineDescender, $lineLineGap,
+                $wordBreak
+            ))!==null) {
+                $baseHeight=$lineAscender-$lineDescender;
+                $lineHeight=($baseHeight+$lineLineGap)*$lineHeightScale;
                 if($maxHeight+$lineHeight>$height) {
                     break;
                 }
@@ -80,6 +88,8 @@ class Text implements ModuleInterface
                 $lineArr[]=$line;
                 $widthArr[]=$totalWidth;
                 $heightArr[]=$lineHeight;
+                $baselineToTopArr[]=$baselineToTop=($lineHeight-$baseHeight)/2+$lineAscender;
+                $underlineToTopArr[]=$baselineToTop-$lineDescender;
             }
         }
         //框內對齊
@@ -110,33 +120,28 @@ class Text implements ModuleInterface
             } else {
                 $dtx=0;
             }
-            //行高
-            $lineHeight=$heightArr[$idx];
             //此時 (x,y) 為左上角座標
             $x=$x0+$dtx;
             $color=isset($opt['color'])?$this->convertRGBValue($opt['color']):false;
             foreach($line as $seg) {
-                $info=$hInfo[$seg['font']];
-                $helfLeading=($lineHeight-$info['height'])/2;
-                $tmpY=$y-$helfLeading-$info['ascent'];
                 if(isset($opt['underline']) && floatval($opt['underline'])>0) {
-                    $tmpY2=$tmpY+$info['descent'];
-                    $underline=' '.($color?$color.' RG ':'')."${opt['underline']} w $x $tmpY2 m ".($x+$widthArr[$idx])." $tmpY2 l S ";
+                    $liderlineY=$y-$underlineToTopArr[$idx];
+                    $underline=' '.($color?$color.' RG ':'')."${opt['underline']} w $x $liderlineY m ".($x+$seg['width'])." $liderlineY l S ";
                 } else {
                     $underline='';
                 }
                 $this->mtx->pushData($this, [
                     'psName'=>$seg['font'],
-                    'size'=>$info['size'],
+                    'size'=>$hInfo[$seg['font']]['size'],
                     'x'=>$x,
-                    'y'=>$tmpY,
+                    'y'=>$y-$baselineToTopArr[$idx],
                     'str'=>$seg['text'],
                     'color'=>$color?$color.' rg ':'',
                     'underline'=>$underline,
                 ]);
                 $x+=$seg['width'];
             }
-            $y-=$lineHeight;
+            $y-=$heightArr[$idx];
         }
     }
 
@@ -147,20 +152,27 @@ class Text implements ModuleInterface
      * @param string $text 字串(utf-16be)
      * @param int $len 字串總長度(byte)
      * @param int &$idx 讀取到的位置
-     * @param number &$totalWidth 該行總寬度(所有片段的 width 相加)
+     * @param float &$totalWidth 該行總寬度(所有片段的 width 相加)
      * @param array $fontHeight {font:{height:行高},...}
-     * @param number &$lineHeight 行高(該行有使用到的字型的最大值)
-     * @param bool $wordBreak 是否強制英數斷航
+     * @param float &$lineAscender  回傳最高的 Ascender
+     * @param float &$lineDescender 回傳最低的 Descender
+     * @param float &$lineLineGap   回傳最大的 LineGap
+     * @param bool $wordBreak 是否強制英數斷行
      * @return array|null 該行的資料，[{text:字串(utf-16be),width:寬度,font:字型},...]
      */
-    private function getNextLine($text, $len, &$idx, &$totalWidth, $fontHeight, &$lineHeight ,$wordBreak=false)
-    {
+    private function getNextLine(
+        $text, $len, &$idx,
+        &$totalWidth,
+        $fontHeight, &$lineAscender, &$lineDescender, &$lineLineGap,
+        $wordBreak=false
+    ) {
         $ftCtrl=$this->ftCtrl;
         $maxWidth=$this->width;
-        $lineHeight=0;
+        $lineAscender=$lineDescender=$lineLineGap=0;
         $result=[];
         $i0=$i1=$i2=$idx;
         $w0=$w1=$w2=$w=$dIdx=0;
+        $ft=$ft1=$ft2='';
         if($i2>=$len) {
             return null;
         }
@@ -205,8 +217,14 @@ class Text implements ModuleInterface
                     'width' => $w1,
                     'font' => $ft1
                 ];
-                if($lineHeight<$fontHeight[$ft1]['height']) {
-                    $lineHeight=$fontHeight[$ft1]['height'];
+                if($lineAscender<$fontHeight[$ft1]['typoAscender']) {
+                    $lineAscender=$fontHeight[$ft1]['typoAscender'];
+                }
+                if($lineDescender>$fontHeight[$ft1]['typoDescender']) {
+                    $lineDescender=$fontHeight[$ft1]['typoDescender'];
+                }
+                if($lineLineGap<$fontHeight[$ft1]['typoLineGap']) {
+                    $lineLineGap=$fontHeight[$ft1]['typoLineGap'];
                 }
                 $i0=$i1;
                 $w0+=$w1;
@@ -223,8 +241,14 @@ class Text implements ModuleInterface
                 'width' => $w1,
                 'font' => $ft1
             ];
-            if($lineHeight<$fontHeight[$ft1]['height']) {
-                $lineHeight=$fontHeight[$ft1]['height'];
+            if($lineAscender<$fontHeight[$ft1]['typoAscender']) {
+                $lineAscender=$fontHeight[$ft1]['typoAscender'];
+            }
+            if($lineDescender>$fontHeight[$ft1]['typoDescender']) {
+                $lineDescender=$fontHeight[$ft1]['typoDescender'];
+            }
+            if($lineLineGap<$fontHeight[$ft1]['typoLineGap']) {
+                $lineLineGap=$fontHeight[$ft1]['typoLineGap'];
             }
             $i0=$i1;
             $w0+=$w1;
@@ -238,8 +262,14 @@ class Text implements ModuleInterface
                 'width' => $w2,
                 'font' => $ft
             ];
-            if($lineHeight<$fontHeight[$ft]['height']) {
-                $lineHeight=$fontHeight[$ft]['height'];
+            if($lineAscender<$fontHeight[$ft]['typoAscender']) {
+                $lineAscender=$fontHeight[$ft]['typoAscender'];
+            }
+            if($lineDescender>$fontHeight[$ft]['typoDescender']) {
+                $lineDescender=$fontHeight[$ft]['typoDescender'];
+            }
+            if($lineLineGap<$fontHeight[$ft]['typoLineGap']) {
+                $lineLineGap=$fontHeight[$ft]['typoLineGap'];
             }
             $i0=$i1=$i2;
             $w0=$w2;

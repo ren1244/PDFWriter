@@ -31,8 +31,7 @@ class TrueType implements Font
         foreach(['unit', 'gtw', 'gtb', 'utg', 'mtx', 'tbPos', 'loca', 'psname'] as $k) {
             $this->$k=$ftJson[$k];
         }
-        $scale=1000/$this->unit;
-        foreach(['italicAngle', 'ascent', 'descent', 'capHeight'] as $k) {
+        foreach(['italicAngle', 'ascent', 'descent', 'capHeight', 'typoAscender', 'typoDescender', 'typoLineGap'] as $k) {
             $this->mtx[$k]*=1000/$this->unit;
         }
         foreach($this->mtx['bbox'] as $i=>$v) {

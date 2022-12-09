@@ -26,6 +26,9 @@ interface Font
      * ascent: 基線以上高度
      * descent: 基線以下高度
      * capHeight: capHeight（稍微小於或等於 ascent）
+     * typoAscent:  排版時的 Ascent
+     * typoDescent: 排版時的 Descent
+     * typoLineGap: 排版時的 LineGap
      * 
      * @return array 字型資訊
      */

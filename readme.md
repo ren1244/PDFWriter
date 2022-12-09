@@ -128,7 +128,7 @@ PS. 以上兩種安裝方式，outname 可以省略，此時 outname 會依據�
 |key| value type | value meaning |
 |---|---|---|
 |lineHeight |number| 行高，相對於該行字型大小，預設值為1.2 |
-|breakWord|bool| 英數是否強制換行|
+|wordBreak|bool| 英數是否強制換行|
 |color|string| 文字顏色，RRGGBB，例如 FFCC00|
 |textAlign|string| 多行文字對齊，可能的值有："left", "center", "right"|
 |cellAlign|integer| 文字要對齊文字框的何處，允許的數值是 1~9，對應數字鍵的位置|
@@ -140,11 +140,11 @@ PS. 每頁的文字框是獨立的，不跨頁使用。
 
 可以直接寫 postScript 語言來畫線條
 
-    $pdf->PostscriptGragh->addPath(postScript, 線寬);
+    $pdf->postscriptGragh->addPath(postScript, 線寬);
 
 例如想畫一條從 (10, 10) 到 (20, 30) 的直線
 
-    $pdf->PostscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::getUnit(1));
+    $pdf->postscriptGragh->addPath('10 10 m 20 30 l S', PageMetrics::getUnit(1));
 
 PS. 由於 addPath 的單位是預設單位，所以線寬希望是 1 pt 時，可以用 PageMetrics::getUint(1) 把 pt 轉換為 unit 單位。
 

@@ -30,13 +30,10 @@ class FontLoader
         }
         $this->readHhea();
         $this->readHead();
+        $this->readOS2();
         $this->readPost();
         $this->getCapHeight();
         $this->readName();
-        $max=count($this->widths)-1;
-        $dw=$this->widths[$max];
-        $scale=1000/$this->mtx['unitsPerEm'];
-        $scale=1;
         if(!isset($this->names[6])) {
             throw new \Exception('no post script name');
         }
@@ -76,15 +73,18 @@ class FontLoader
             'utg'=>$this->utg,
             'mtx'=>[
                 'bbox'=>[
-                    $this->mtx['bbox'][0]*$scale,
-                    $this->mtx['bbox'][1]*$scale,
-                    $this->mtx['bbox'][2]*$scale,
-                    $this->mtx['bbox'][3]*$scale
+                    $this->mtx['bbox'][0],
+                    $this->mtx['bbox'][1],
+                    $this->mtx['bbox'][2],
+                    $this->mtx['bbox'][3]
                 ],
                 'italicAngle'=>$this->mtx['italicAngle'],
-                'ascent'=>$this->mtx['ascender']*$scale,
-                'descent'=>$this->mtx['descender']*$scale,
-                'capHeight'=>($this->mtx['capHeight']??$this->mtx['ascender'])*$scale,
+                'ascent'=>$this->mtx['ascender'],
+                'descent'=>$this->mtx['descender'],
+                'capHeight'=>($this->mtx['capHeight']??$this->mtx['ascender']),
+                'typoAscender'=>$this->mtx['typoAscender'],
+                'typoDescender'=>$this->mtx['typoDescender'],
+                'typoLineGap'=>$this->mtx['typoLineGap'],
             ],
             'loca'=>$this->loca,
             'tbPos'=>$newTbPos,
@@ -119,6 +119,11 @@ class FontLoader
         }
     }
 
+    /**
+     * 從 cmap 中抓取並設定:
+     * $this->maxGid: glygh id 的最大值
+     * $this->utg: unicode to glygh id
+     */
     private function readCmap()
     {
         $data=$this->data;
@@ -126,7 +131,7 @@ class FontLoader
         $arr=unpack('nver/nnTables', $data, $pos);
         $nTables=$arr['nTables'];
         $pos+=4;
-        $usePlatEnc=['3-10', '3-1'];
+        $usePlatEnc=['3-10', '3-1']; // 只使用 windows 的 Unicode BMP 與 Unicode full repertoire
         $oid=false;
         $m=[];
         for($i=0;$i<$nTables;++$i) {
@@ -153,6 +158,14 @@ class FontLoader
         $this->utg=$m;
     }
 
+    /**
+     * 讀取 maxp 與 hmtx 表，並設定
+     * $this->mtx['ascender']
+     * $this->mtx['descender']
+     * $this->mtx['lineGap']
+     * $this->widths: index 為 glygh id，值為 advanceWidth
+     * $this->bearings: index 為 glygh id，值為 lsb
+     */
     private function readHhea()
     {
         $data=$this->data;
@@ -190,6 +203,30 @@ class FontLoader
         $this->bearings=$bearings;
     }
 
+    /**
+     * 讀取 OS/2 表，並設定
+     * $this->typoAscender
+     * $this->typoDescender
+     * $this->typoLineGap
+     */
+    public function readOS2() {
+        $data=$this->data;
+        $pos=$this->tbPos['OS/2']['offset'];
+        $arr=unpack('ntypoAscender/ntypoDescender/ntypoLineGap', $data, $pos+68);
+        foreach($arr as $key=>$val) {
+            if($val>>15&1) {
+                $val=-((~$val&0xffff)+1);
+            }
+            $this->mtx[$key]=$val;
+        }
+    }
+
+    /**
+     * 讀取 head 表，並設定
+     * $this->indexToLocFormat
+     * $this->mtx['unitsPerEm']
+     * $this->mtx['bbox']
+     */
     private function readHead()
     {
         $data=$this->data;

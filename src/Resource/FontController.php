@@ -18,6 +18,7 @@ class FontController implements ResourceInterface
      */
     private $fonts=[];
     private $fontCount=0;
+    /** @var string|array|false */
     private $curFont=false; //ftName
     private $curName=false; //pdf font name
     private $ft2name=[]; //字型檔案的名稱 => PDF內字型名稱
@@ -88,9 +89,10 @@ class FontController implements ResourceInterface
                 $info=$this->fonts[$ft]->getMtx();
                 $this->fontHeightInfo[$ft]=[
                     'size' => $sz,
-                    'ascent' => $info['ascent']*$sz/1000,
-                    'descent' => $info['descent']*$sz/1000,
-                    'height' => ($info['ascent']-$info['descent'])*$sz/1000,
+                    'typoAscender' => $info['typoAscender']*$sz/1000,
+                    'typoDescender' => $info['typoDescender']*$sz/1000,
+                    'typoLineGap' => $info['typoLineGap']*$sz/1000,
+                    'height' => ($info['typoAscender']-$info['typoDescender'])*$sz/1000
                 ];
             }
         } else {
@@ -102,9 +104,10 @@ class FontController implements ResourceInterface
             $this->fontHeightInfo=[
                 $font => [
                     'size' => $size,
-                    'ascent' => $info['ascent']*$size/1000,
-                    'descent' => $info['descent']*$size/1000,
-                    'height' => ($info['ascent']-$info['descent'])*$size/1000,
+                    'typoAscender' => $info['typoAscender']*$size/1000,
+                    'typoDescender' => $info['typoDescender']*$size/1000,
+                    'typoLineGap' => $info['typoLineGap']*$size/1000,
+                    'height' => ($info['typoAscender']-$info['typoDescender'])*$size/1000
                 ]
             ];
         }
@@ -158,50 +161,9 @@ class FontController implements ResourceInterface
     }
 
     /**
-     * 依據目前所設定的字型，取得 ascent 與 descent
-     * 如果是多個字型，則以最大值為回傳值
-     * 
-     * @return array ['ascent'=>基線以上空間, 'descent'=>基線以下空間]
-     */
-    public function getHeightInfo()
-    {
-        if($this->getWidthType===1) {
-            $info=$this->fonts[$this->curFont]->getMtx();
-            return [
-                'ascent'=>$info['ascent']*$this->ftSize/1000,
-                'descent'=>$info['descent']*$this->ftSize/1000
-            ];
-        } elseif($this->getWidthType===2) {
-            $hMax=0;
-            $dMax=0;
-            $szMax=0;
-            foreach($this->curFont as $ftName=>$ftSize) {
-                $info=$this->fonts[$ftName]->getMtx();
-                $h=$info['ascent'];
-                $d=$info['descent'];
-                if($hMax<$h){
-                    $hMax=$h;
-                }
-                if($dMax>$d){                    
-                    $dMax=$d;
-                }
-                if($szMax<$ftSize){
-                    $szMax=$ftSize;
-                }
-            }
-            return [
-                'ascent'=>$hMax*$szMax/1000,
-                'descent'=>$dMax*$szMax/1000
-            ];
-        } else {
-            throw new \Exception('font is undefined');
-        }
-    }
-
-    /**
      * 取得字型高度資訊
      * 
-     * @return array {字形名稱:{size(pt),ascent(pt),descent(pt)}, ...}
+     * @return array {字形名稱:{size(pt),typoAscender(pt),typoDescender(pt),typoLineGap(pt),height(pt)}, ...}
      */
     public function getFontHeightInfo()
     {
