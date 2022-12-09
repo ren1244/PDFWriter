@@ -94,10 +94,23 @@ class PDFWriter
      */
     public function addPage($widthOrName, $height=false)
     {
-        if($height===false) {
-            $arr=Config::PAGE_SIZE[$widthOrName];
-            $width=$arr[0];
-            $height=$arr[1];
+        if(gettype($widthOrName)==='string') {
+            $s1 = substr($widthOrName, 0, -1);
+            $s2 = substr($widthOrName, -1);
+            if(isset(Config::PAGE_SIZE[$widthOrName])) {
+                $arr = Config::PAGE_SIZE[$widthOrName];
+            } elseif(isset(Config::PAGE_SIZE[$s1])) {
+                $arr = Config::PAGE_SIZE[$s1];
+            } else {
+                throw 'no page named '.$widthOrName;
+            }
+            if($s2==='L'||$s2==='H'){
+                $width=$arr[1];
+                $height=$arr[0];
+            } else {
+                $width=$arr[0];
+                $height=$arr[1];
+            }
         } else {
             $height=PageMetrics::getPt($height);
             $width=PageMetrics::getPt($widthOrName);
