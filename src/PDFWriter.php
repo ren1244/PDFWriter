@@ -302,10 +302,14 @@ class PDFWriter
             $params=$refConstructor->getParameters();
             $n=count($params);
             for($i=0; $i<$n; ++$i) {
-                if(!$params[$i]->hasType()){
+                $refType=$params[$i]->getType();
+                if(!$refType){
                     throw new \Exception('Module constructor has no type hint');
                 }
-                $depName=$params[$i]->getClass()->getName();
+                if($refType instanceof \ReflectionUnionType) {
+                    throw new \Exception('Module constructor has union type hint');
+                }
+                $depName=$refType->getName();
                 if(isset($this->resourceClassToKey[$depName])) {
                     $depName=$this->resourceClassToKey[$depName];
                     $argList[]=$this->$depName;
