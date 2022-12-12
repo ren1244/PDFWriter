@@ -34,6 +34,7 @@ class PDFWriter
     private $resourceClassToKey;
 
     private $encryptionObject = null;
+    private $outlineObject = null;
 
     /**
      * 建立 PDFWriter 物件
@@ -138,6 +139,23 @@ class PDFWriter
         $this->encryptionObject = new $className($userPassword, $ownerPassword, $permisionFlag, $docId);
         $this->writer->setEncryptionObject($this->encryptionObject);
     }
+    
+    /**
+     * 增加一個書籤
+     *
+     * @param  string $title 書籤文字
+     * @param  int|null $page 跳到第幾頁，若為 null 代表點擊時不跳頁
+     * @param  mixed $y 跳到頁面 y 座標，當 $page 有設定才有效
+     * @param  int $style 樣式，可用 Outline::ITALIC (=1) 與 Outline::BOLD (=2) 作為 Flag 設定
+     * @param  string|null $color 6 位 hex 字串，代表 RRGGBB
+     * @return Outline 這個物件也提供一個 addOutline 方法，以實現多層結構書籤的功能
+     */
+    public function addOutline($title, $page = null, $y = 0, $style = 0, $color = null) {
+        if($this->outlineObject===null) {
+            $this->outlineObject = new Outline();
+        }
+        return $this->outlineObject->addOutline($title, $page, $y, $style, $color);
+    }
 
     /**
      * 輸出 PDF
@@ -159,16 +177,26 @@ class PDFWriter
         if($fp===false) {
             header('Content-Type: application/pdf');
         }
+        //prepare Id
+        $nPages=count($this->pages);
+        $pageIds=$this->preserveIdArray($nPages);
         //hrader
         $pdf->writeLine($this->encryptionObject instanceof Encryption\EncryptionInterface ? '%PDF-1.7' : '%PDF-1.4');
         $pdf->writeLine('%§§');
         //catalog
-        $pdf->writeDict("/Type /Catalog\n/Pages $this->pageTreeId 0 R", $this->catalogId);
+        if($this->outlineObject===null) {
+            $pdf->writeDict("/Type /Catalog\n/Pages $this->pageTreeId 0 R", $this->catalogId);
+        } else {
+            $outlineId=$this->outlineObject->prepareId($this->writer);
+            $pdf->writeDict("/Type /Catalog\n/Pages $this->pageTreeId 0 R\n/Outlines $outlineId 0 R\n/PageMode /UseOutlines", $this->catalogId);
+        }
         //root page tree
-        $nPages=count($this->pages);
-        $pageIds=$this->preserveIdArray($nPages);
         $kids=implode(' 0 R ', $pageIds);
         $pdf->writeDict("/Type /Pages\n/Kids [$kids 0 R]\n/Count $nPages", $this->pageTreeId);
+        //outline
+        if($this->outlineObject!==null) {
+            $this->outlineObject->writeOutlineDict($this->writer, $pageIds, $this->pages);
+        }
         //pages
         foreach($this->pages as $i=>&$page) {
             $tmpIds=[];
