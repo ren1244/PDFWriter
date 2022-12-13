@@ -99,10 +99,30 @@ class StreamWriter
      * 
      * @param string $constet 這個dict 內的內容
      * @param int|false $id 預先保留的 id，如果不給就是新增一個 id
+     * @param array|false $cipherParts 要被加密的片段，格式：[start1, end1, start2, end2, ...]
+     *                                 注意：「要被加密的片段」應該是 16 進位表示的 UTF16-BE 字串
      */
-    public function writeDict($content, $id=false)
+    public function writeDict($content, $id=false, $cipherParts = false)
     {
         $this->initId($id);
+        if($this->encryptionObject !== null && is_array($cipherParts)) {
+            $result = [];
+            $n = count($cipherParts);
+            $idx = 0;
+            for($i = 1; $i < $n; $i += 2) {
+                $startPos = $cipherParts[$i - 1];
+                $endPos = $cipherParts[$i];
+                if($idx < $startPos) {
+                    $result[] = substr($content, $idx, $startPos - $idx);
+                }
+                $s = hex2bin(substr($content, $startPos, $endPos - $startPos));
+                $s = $this->encryptionObject->encrypt($s, $id);
+                $result[] = bin2hex($s);
+                $idx = $endPos;
+            }
+            $result[] = substr($content, $idx);
+            $content = implode('', $result);
+        }
         $dictContent="$id 0 obj\n<<\n$content\n>>\nendobj\n";
         fwrite($this->ofp, $dictContent);
         $this->posTable[$id]=$this->pos;

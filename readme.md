@@ -240,8 +240,6 @@ $other->addOutline("參考文件", 10, 10);
 
 目前支援 Aes256、Aes128、Rc4_128 三種加密，可參考 `examples/ex3_encryption.php`
 
-PS. 目前書籤功能在加密狀態下會有些問題，待修正
-
 ## 擴充功能
 
 在架構上，PDFWriter 分為三層：

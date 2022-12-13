@@ -110,11 +110,13 @@ class Outline
     public function writeOutlineDict(StreamWriter $writer, $pageIdArray, $pages)
     {
         $dict = [];
+        $pos = false;
         if ($this->title === null) {
             $dict[] = "/Type /Outlines";
         } else {
             $title = 'FEFF' . bin2hex(mb_convert_encoding($this->title, 'UTF-16BE', 'UTF-8'));
             $dict[] = "/Title <$title>";
+            $pos = [8, 8 + strlen($title)];
         }
         if ($this->parentId !== null) {
             $dict[] = "/Parent {$this->parentId} 0 R";
@@ -146,7 +148,7 @@ class Outline
         if ($this->style !== 0) {
             $dict[] = "/F {$this->style}";
         }
-        $writer->writeDict(implode("\n", $dict), $this->currentId);
+        $writer->writeDict(implode("\n", $dict), $this->currentId, $pos);
         foreach ($this->children as $item) {
             $item->writeOutlineDict($writer, $pageIdArray, $pages);
         }
