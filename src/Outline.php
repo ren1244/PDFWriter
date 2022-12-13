@@ -6,6 +6,7 @@ use ren1244\PDFWriter\StreamWriter;
 
 class Outline
 {
+    const NORMAL = 0;
     const ITALIC = 1;
     const BOLD = 2;
 

@@ -2,6 +2,7 @@
 namespace ren1244\PDFWriter\Resource;
 
 use ren1244\PDFWriter\StreamWriter;
+use ren1244\PDFWriter\Config;
 
 /**
  * 點陣圖的資源管理器
@@ -179,7 +180,7 @@ class ImageResource implements ResourceInterface
                 $pIdat2=$pIdat=1+$bpp1;
                 for($k=0;$k<$depth;++$k) {
                     $a[$k]=ord($idat[$pIdat2++]);
-                    $trns.=chr($a);
+                    $trns.=chr($a[$k]);
                 }
                 for($i=1; $i<$w; ++$i) {
                     for($k=0;$k<$bpp1;++$k) {
