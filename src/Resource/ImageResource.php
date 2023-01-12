@@ -64,7 +64,7 @@ class ImageResource implements ResourceInterface
                     'BitsPerComponent' => $info['bits'],
                     'Width' => $info[0],
                     'Height' => $info[1],
-                    'ColorSpace' => $info['channels']===3?'/DeviceRGB':'/DeviceCMYK',
+                    'ColorSpace' => $info['channels']===3?'/DeviceRGB':($info['channels']===1?'/DeviceGray':'/DeviceCMYK'),
                     'Filter' => '/DCTDecode'
                 ]);
                 $arr[]="/{$info['key']} $id 0 R";
