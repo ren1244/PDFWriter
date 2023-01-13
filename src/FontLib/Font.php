@@ -4,11 +4,11 @@ namespace ren1244\PDFWriter\FontLib;
 interface Font
 {
     /**
-     * 依據 $psName 初始化
+     * 依據 $fontFilename 初始化
      * 
-     * @param string $psName 字型辨識名稱
+     * @param string $fontFilename 字型辨識名稱
      */
-    public function __construct($psName, $ftJson);
+    public function __construct($fontFilename, $ftJson);
 
     /**
      * 取得該 unicode 的寬度，如果超出字型範圍，回傳 false
@@ -38,12 +38,14 @@ interface Font
     
     /**
      * 取得類型，讓 FontController 類別作為產生 pdf 內容的依據
-     * @return int 0 for Standard, 1 for TrueType
+     * @return int 0 for Standard, 1 for TrueType, 2 for OpenType
      */
     public function getType();
 
     /**
      * 依據曾經 getWidth 的 unicodes，建立 subset
+     * 
+     * @return bool 如果回傳 false 則表示此字型沒有被使用到
      */
     public function subset();
 

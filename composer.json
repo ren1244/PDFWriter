@@ -2,7 +2,8 @@
     "name": "ren1244/pdfwriter",
     "description": "An extensiable php pdf library",
     "require": {
-        "php": "^7.1.0"
+        "php": "^7.1.0",
+        "ren1244/sfnt": "~1.0"
     },
     "autoload": {
         "psr-4": {
