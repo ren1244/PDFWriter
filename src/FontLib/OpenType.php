@@ -38,6 +38,7 @@ class OpenType implements Font
         $this->cmap->loadCache($cache['cmap']);
         $this->hmtx = $this->font->table('hmtx');
         $this->hmtx->loadCache($cache['hmtx']);
+        $this->font->table('CFF ')->setCharstringDependancyCache($cache['CFF ']);
         // 讀取 head
         $head = $this->font->table('head');
         $this->unitsPerEm = $head->unitsPerEm;

@@ -9,6 +9,9 @@ use ren1244\sfnt\TypeReader;
 
 class FontLoader
 {
+    const HEADER = 'SFNT_CACHE';
+    const VERSION = 1;
+
     public static function loadFile($filename, $outputNmae = false)
     {
         $data = file_get_contents($filename);
@@ -48,7 +51,9 @@ class FontLoader
 
         // 輸出 cache file
         $stream = fopen($binFilename, 'wb');
-        fwrite($stream, pack('CN', 3, strlen($data)));
+        fwrite($stream, self::HEADER);
+        fwrite($stream, pack('C', self::VERSION));
+        fwrite($stream, pack('CN', $font->sfntVersion === 0x00010000 ? 3 : 4, strlen($data)));
         fwrite($stream, $data);
         $data = $font->table('cmap')->createCache();
         fwrite($stream, pack('N', strlen($data)));
@@ -56,15 +61,26 @@ class FontLoader
         $data = $font->table('hmtx')->createCache();
         fwrite($stream, pack('N', strlen($data)));
         fwrite($stream, $data);
+        if ($font->sfntVersion === 0x4F54544F) {
+            $data = $font->table('CFF ')->getCharstringDependancyCache();
+            fwrite($stream, pack('N', strlen($data)));
+            fwrite($stream, $data);
+        }
         fclose($stream);
     }
 
     public static function loadCache($fontFilename)
     {
         $cacheFile = fopen(Config::FONT_DIR . '/custom/' . $fontFilename . '.bin', 'rb');
+        if (
+            fread($cacheFile, 10) !== self::HEADER ||
+            ord(fread($cacheFile, 1)) !== self::VERSION
+        ) {
+            throw new Exception('Font cache does not match current version. Please load font ' . $fontFilename . ' again.');
+        }
         $count = ord(fread($cacheFile, 1));
         $cache = [];
-        $tbnames = ['font', 'cmap', 'hmtx'];
+        $tbnames = ['font', 'cmap', 'hmtx', 'CFF '];
         for ($i = 0; $i < $count; ++$i) {
             $len = unpack('N', fread($cacheFile, 4))[1];
             $cache[$tbnames[$i]] = fread($cacheFile, $len);
