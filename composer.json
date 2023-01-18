@@ -3,7 +3,7 @@
     "description": "An extensiable php pdf library",
     "require": {
         "php": "^7.1.0",
-        "ren1244/sfnt": "~1.0"
+        "ren1244/sfnt": "~1.1"
     },
     "autoload": {
         "psr-4": {

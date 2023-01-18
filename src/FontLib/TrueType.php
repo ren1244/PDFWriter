@@ -14,8 +14,8 @@ class TrueType implements Font
 
     private $fontname;
     private $unitsPerEm;
-    private $unicodeToGID = [];
-    private $GIDToWidth = [];
+    private $cmap;
+    private $hmtx;
     private $mtx;
 
     private $usedUnicode = [];
@@ -29,19 +29,21 @@ class TrueType implements Font
      */
     public function __construct($fontFilename, $ftJson)
     {
-        $fontContent = file_get_contents(Config::FONT_DIR . '/custom/' . $fontFilename . '.bin');
-        $this->reader = new TypeReader($fontContent);
+        // 讀取資料
+        $cache = FontLoader::loadCache($fontFilename);
+        // 讀入字型，並將 cache 寫入
+        $this->reader = new TypeReader($cache['font']);
         $this->font = new Sfnt($this->reader);
+        $this->cmap = $this->font->table('cmap');
+        $this->cmap->loadCache($cache['cmap']);
+        $this->hmtx = $this->font->table('hmtx');
+        $this->hmtx->loadCache($cache['hmtx']);
         // 讀取 head
         $head = $this->font->table('head');
         $this->unitsPerEm = $head->unitsPerEm;
-        // 從 cmap 取得 unicodeToGID
-        $cmap = $this->font->table('cmap');
-        $cmap->getCodeToGid(3, 10, $this->unicodeToGID);
-        $cmap->getCodeToGid(3, 1, $this->unicodeToGID);
         // 從 name 讀取 fontname
         $nameTable = $this->font->table('name');
-        if(
+        if (
             (
                 ($nameArray = $nameTable->getNames(3, 10)) === null &&
                 ($nameArray = $nameTable->getNames(3, 1)) === null
@@ -50,15 +52,8 @@ class TrueType implements Font
             throw new Exception('no postscript fontname');
         }
         $this->fontname = $nameArray[6];
-        // 讀取 maxp
-        $maxp = $this->font->table('maxp');
-        // 讀取 hhea
+        // 讀取 hhea, OS/2
         $hhea = $this->font->table('hhea');
-        // 從 hmtx 取得 GIDToWidth
-        $this->GIDToWidth = $this->font->table('hmtx')->getGIDToWidth(
-            $hhea->numberOfHMetrics,
-            $maxp->numGlyphs
-        );
         $os2 = $this->font->table('OS/2');
         $scale = 1000 / $head->unitsPerEm;
 
@@ -88,11 +83,11 @@ class TrueType implements Font
      */
     public function getWidth($unicode)
     {
-        if (!isset($this->unicodeToGID[$unicode])) {
+        if (($gid = $this->cmap->getGid($unicode)) === 0) {
             return false;
         }
         $this->usedUnicode[$unicode] = 1;
-        return $this->GIDToWidth[$this->unicodeToGID[$unicode]];
+        return $this->hmtx->getWidth($gid);
     }
 
     /**
@@ -131,14 +126,15 @@ class TrueType implements Font
      */
     public function subset()
     {
-        if(empty($this->usedUnicode)) {
+        if (empty($this->usedUnicode)) {
             return false;
         }
         ksort($this->usedUnicode, SORT_NUMERIC);
+        $cmap = $this->cmap;
         $usedGID = [];
         $newGID = 0;
-        foreach($this->usedUnicode as $unicode => &$x) {
-            $origGID = $this->unicodeToGID[$unicode] ?? 0;
+        foreach ($this->usedUnicode as $unicode => &$x) {
+            $origGID = $cmap->getGid($unicode);
             $usedGID[$origGID] = 1;
             $x = ++$newGID;
         }
@@ -180,14 +176,15 @@ class TrueType implements Font
      */
     public function getW()
     {
-        $utg = $this->unicodeToGID;
-        $gtw = $this->GIDToWidth;
+        $cmap = $this->cmap;
+        $hmtx = $this->hmtx;
         $scale = 1000 / $this->unitsPerEm;
         $result = [];
         foreach ($this->usedUnicode as $unicode => $newGID) {
-            $gid = $utg[$unicode] ?? 0;
+            $gid = $cmap->getGid($unicode);
             if ($gid > 0) {
-                $result[$newGID] = $gtw[$gid] ? $gtw[$gid] * $scale : 1000;
+                $w = $hmtx->getWidth($gid);
+                $result[$newGID] = $w ? $w * $scale : 1000;
             }
         }
         return $result;
@@ -234,7 +231,6 @@ class TrueType implements Font
         $arr = array_values(unpack('n*', $str));
         $n = count($arr);
         $s = '';
-        $utg = $this->unicodeToGID;
         for ($i = 0; $i < $n; ++$i) {
             $c = $arr[$i];
             if (0xd800 <= $c && $c <= 0xdbff) {

@@ -23,14 +23,12 @@ if ($count === 2) {
     if (!file_exists($fname) || is_dir($fname)) {
         exit("file $fnamenot not exists");
     }
-    $ttf = new FontLoader;
-    $ttf->loadFile($fname);
+    FontLoader::loadFile($fname);
 } elseif ($count === 3) {
     $fname = getcwd() . '/' . parse_url($argv[1])['path'];
     $outname = $argv[2];
     if (!file_exists($fname) || is_dir($fname)) {
         exit("file $fnamenot not exists");
     }
-    $ttf = new FontLoader;
-    $ttf->loadFile($fname, $outname);
+    FontLoader::loadFile($fname, $outname);
 }
