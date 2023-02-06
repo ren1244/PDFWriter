@@ -7,7 +7,7 @@
 ## 專案的方向
 
 * 支援全範圍 unicode（現在很多 PHP PDF 函式庫只支援到[基本多文種平面](https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)）
-* 至少支援 TTF 與 OTF 字型，或是更多種。（目前 TTF 跟 OTF 都可以使用，不過 otf 檔案會較大）
+* 至少支援 TTF 與 OTF 字型，或是更多種。
 * 當字型缺字時，自動切換為候補字型。這個可以達到英數與中文字採用不同字型的效果。
 * 提供擴充的介面，讓其他開發者依需求擴充自己需要的模組。
 
@@ -167,6 +167,40 @@ $pdf->font->setFont([
 |textAlign|string|"left"| 多行文字對齊，可能的值有："left", "center", "right"|
 |cellAlign|integer|7| 文字要對齊文字框的何處，允許的數值是 1~9，對應數字鍵的位置|
 |underline|number|0| 底線寬，單位是 pt，如果為 0 則不添加底線|
+
+#### 直書
+
+此功能開發中，目前處理英文、數字與中文，其他語言會當作中文處理。
+
+用 `addTextV` 寫入直書文字
+
+```php
+$pdf = new PDFWriter;
+$pdf->addPage('A4');
+
+// 這邊用到自訂字型，請參考前面的說明
+// 第二個參數設為 true 開啟直書功能
+$pdf->font->addFont('SourceHanSansTC-Regular', true);
+// 設定字型（Times-Roman 14pt）
+$pdf->font->setFont('SourceHanSansTC-Regular', 14);
+// 設定要寫入的矩形區域: left, top, width, height （單位是「目前單位」，此時是 mm）
+$pdf->text->setRect(10, 10, 100, 100);
+// 用 addTextV 寫入直書文字
+$pdf->text->addTextV("關關雎鳩，在河之洲。\n窈窕淑女，君子好逑。");
+
+$pdf->output();
+```
+
+`addTextV` 的第二個參數是一個選擇性的參數，為一個關聯陣列，可以有以下選擇
+
+| KEY | 值的資料類型 | 預設值 | 說明 |
+|---|---|---|---|
+|lineSpace|float|0|額外的行距|
+|wordSpace|float|0|額外的字距|
+|mode|string|"RL"|從左到右或是從右到左，可能的值有："RL", "LR"|
+|color|string\|false|false| 文字顏色，RRGGBB，例如 "FFCC00"<br>若為 false 則視環境設定而不同|
+|textAlign|string|"start"| 多行文字對齊，可能的值有："start", "middle", "end"|
+|cellAlign|integer|7| 文字要對齊文字框的何處，允許的數值是 1~9，對應數字鍵的位置|
 
 ### 圖形
 

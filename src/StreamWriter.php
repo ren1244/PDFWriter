@@ -167,6 +167,23 @@ class StreamWriter
     }
 
     /**
+     * 寫入任何一種 object，例如 string, array, ...
+     * 
+     * @param string $content object 內容
+     * @param int|false $id 預先保留的 id，如果不給就是新增一個 id
+     * @return int $id obj id
+     */
+    public function writeObject($content, $id=false)
+    {
+        $this->initId($id);
+        $content="$id 0 obj\n$content\nendobj\n";
+        fwrite($this->ofp, $content);
+        $this->posTable[$id]=$this->pos;
+        $this->pos+=strlen($content);
+        return $id;
+    }
+
+    /**
      * 寫入最後的內容，像是 xref、trailer 等
      * 
      * @param int $rootId catalog dict 的 id
